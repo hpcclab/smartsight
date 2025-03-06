@@ -7,17 +7,26 @@ CountLimited = False
 
 # Read IP from file
 IPAddress = "IP.NOT.RETRIEVED"
-
+SSHServerPubKey = "KEY NOT AVAILABLE"
+EdgeABSPath = "PathNotAvailable"
+EdgeUsername = "UsernameNotAvailable"
 AbsPath = "/home/jPi0/Documents/SmartSight/SendImage/"
-
+lines = []
 IPFile = AbsPath + "LaptopIP.txt"
 if os.path.exists(IPFile):
     with open(IPFile, "r") as f:
-        IPAddress = f.read()
+        lines = f.readlines()
 else:
     print("ERROR: ip not retrieved.")
     quit()
-print(IPAddress)
+IPAddress = lines[0]
+print(f"IPAddress: {IPAddress}")
+SSHServerPubKey = lines[1]
+print(f"SSHServerPubKey: {SSHServerPubKey}")
+EdgeABSPath = lines[2]
+print(f"EdgeABSPath: {EdgeABSPath}")
+EdgeUsername = lines[3]
+print(f"EdgeUsername: {EdgeUsername}")
 
 # Add IP to known hosts (if necessary)
 # ~/.ssh/known_hosts
@@ -34,7 +43,7 @@ if os.path.exists(KnownHostsFile):
         file.close
     if not IPAlreadyKnown:
         with open(KnownHostsFile, "a") as f:
-            f.write(f"{IPAddress} ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBAiYBXgYrqtYsFkQc55uNSTHUwLJMSwJ74T2eWQ0LCYVwHOE5W4GQoBgoCwGW6wzQLN1h0h/nCoiB67Bpce6EXw=\n")
+            f.write(f"{IPAddress} {SSHServerPubKey}\n")
             print(f"IP {IPAddress} added to known hosts.")
 else:
     print(f"{KnownHostsFile} Does not exist")
@@ -47,7 +56,7 @@ TakePictureCmd = ["kill", "-SIGUSR1"]
 StopCmd = ["kill", "-SIGUSR2"]
 
 # Use IP in transfer.
-SendCmd = ["scp", "-i", "~/.ssh/rp0keyjacob", outputName, f"jacob@[{IPAddress}]:/C:/Users/Jacob/Documents/UNT/SmartSight/EdgeProgram/image.jpg"]
+SendCmd = ["scp", "-i", "~/.ssh/rp0keyjacob", outputName, f"{EdgeUsername}@[{IPAddress}]:/{EdgeABSPath}/image.jpg"]
 
 activationTime = 10.0
 framerate = 4.0

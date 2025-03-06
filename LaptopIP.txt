@@ -1,0 +1,4 @@
+fe80::1ac9:4267:af56:6043%usb0
+ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBAiYBXgYrqtYsFkQc55uNSTHUwLJMSwJ74T2eWQ0LCYVwHOE5W4GQoBgoCwGW6wzQLN1h0h/nCoiB67Bpce6EXw=
+C:\Users\jacob\Documents\UNT\SmartSight\SmartSightProject
+jacob
