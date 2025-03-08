@@ -1,0 +1,5 @@
+task_type,data_size,file,average_confidence(%),recognition_models_load_time (s),detection_execution_time (s),recognition_execution_time (s)
+facialRecognition,1152x2048,C:\Users\jacob\Documents\UNT\SmartSight\SmartSightProject\FaceDetection\FacialRecognitionTest\testImages\img2.jpg,55.45480,0.03687,0.79590,2.90728
+facialRecognition,3024x4032,C:\Users\jacob\Documents\UNT\SmartSight\SmartSightProject\FaceDetection\FacialRecognitionTest\testImages\IMG_3207.jpg,55.90352,0.04789,0.49667,2.31599
+facialRecognition,415x590,C:\Users\jacob\Documents\UNT\SmartSight\SmartSightProject\FaceDetection\FacialRecognitionTest\testImages\Picture1.jpg,0.00000,0.12267,0.02790,0.00000
+facialRecognition,664x944,C:\Users\jacob\Documents\UNT\SmartSight\SmartSightProject\FaceDetection\FacialRecognitionTest\testImages\Picture1v2.jpg,56.28388,0.04887,0.06283,3.61234

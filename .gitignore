@@ -1,3 +1,6 @@
 *.wav
-\FaceDetection
+\FaceDetection\encodings
+\FaceDetection\referenceCode
+\FaceDetection\Rowan
+\FaceDetection\results
 image.jpg

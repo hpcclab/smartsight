@@ -1,9 +1,9 @@
-##Installation
+## Installation
 - Driver
 - ssh server
 - adding public key to authorized_keys
 
-##Dependancies
+## Dependancies
 - face_recognition
 - opencv
 - pyttsx3
