@@ -9,6 +9,20 @@ from ultralytics import YOLO
 import pyttsx3 
 from collections import Counter
 
+# for handling input
+import threading
+import keyboard
+
+# for the mllm api calls
+import json
+import base64
+import os
+import pyttsx3
+import nest_asyncio
+from openai import OpenAI
+from nemoguardrails import LLMRails, RailsConfig
+
+
 # FACIAL recognition section
 encodings_path = "FaceDetection\\encodings.pickle"
 face_cascade_path = "FaceDetection\\haarcascade_frontalface_default.xml"
@@ -26,7 +40,7 @@ model = YOLO("yolov8s.pt")
 image_path = "image.jpg"
 
 # minimum model confidence to claim a detected item.
-minConf = 0.75
+minConf = 0.7
 
 # After seeing something, if the confidence is >= this value, it'll continue remembering it.
 # PermConf = 0.55
@@ -64,12 +78,138 @@ PeoplePhonics = {"Doctor Mosen Amini Salehi":"Doctor Ahmeeni", "cup":"drink"}
 PeopleInfo = {"Doctor Mosen Amini Salehi":"Your professor from the University of North Texas"}
 EverDetected = {}
 
-# while time.time() < MaxTime:
+def MLLMAnalyzeImage(UserRequest):
+    # Initialize Hive AI client
+    client = OpenAI(
+        base_url="https://api.thehive.ai/api/v3/",  # Hive AI's endpoint
+        api_key="HwDF5vDdbekdQbWsjcrsAXfsZo53N2v7"  # Replace with your API key
+    )
+
+    # Set up NeMo Guardrails
+    NVIDIA_API_KEY = "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"
+    nest_asyncio.apply()
+    os.environ["NVIDIA_API_KEY"] = NVIDIA_API_KEY
+    config = RailsConfig.from_path("./config")
+    rails = LLMRails(config)
+
+    # Initialize Text-to-Speech
+    global engine
+
+    def get_completion(prompt, image_path, model="meta-llama/llama-3.2-11b-vision-instruct"):
+        with open(image_path, "rb") as image_file:
+            base64_image = base64.b64encode(image_file.read()).decode("utf-8")
+        
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "user", "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": base64_image}}
+                ]}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+        
+        return response.choices[0].message.content
+
+    def nemo(text):
+        completion = rails.generate(messages=[{"role": "user", "content": text}])
+        return completion["content"]
+
+    output_file = "results.txt"
+
+    with open(output_file, "w") as result_file:
+        image_name = "image.jpg"
+        prompt = UserRequest + " Ensure response is reasonable and brief."
+        image_path = image_name # os.path.join(test_folder, image_name)
+        
+        if not os.path.exists(image_path):
+            print(f"Image not found: {image_path}")
+            final_response = "No Response because image not found."
+        else:
+            print(f"Processing {image_name}...")
+            
+            # Get AI response
+            ai_response = get_completion(prompt, image_path)
+            
+            # Apply NeMo Guardrails
+            final_response = ai_response
+            # nemo(ai_response)
+        
+        # Write to output file
+        result_file.write(f"Image: {image_name}\n")
+        result_file.write(f"Prompt: {prompt}\n")
+        result_file.write(f"Response: {final_response}\n\n")
+        
+        # Convert to speech
+        engine.say(final_response)
+        engine.runAndWait()
+        
+        print(f"Completed: {image_name}\n")
+    global passive
+    passive = True
+
+
+
+
+##### Split into a thread for passive and one listening for input.
+def check_input():
+    global passive
+    # global RecordingReady
+    while True:
+        # user_input = input("Type 'exit' to stop the script: ")
+        if keyboard.is_pressed('space'):
+            # if RecordingReady:
+
+            print("Script interrupted by user.")
+            passive = False
+            break
+        time.sleep(0.1)
+
+passive = True
+input_thread = threading.Thread(target=check_input)
+input_thread.start()
+# RecordingReady = False
+
+    # if First:
+    #     input_thread = threading.Thread(target=check_input)
+    #     input_thread.start()
+    #     First = False
+        
+
 while True:
+    if not passive:
+        # mllm_thread = threading.Thread(target=MLLMAnalyzeImage)
+        # mllm_thread.start()
+        # Wait until recording is ready.
+        # while RecordingReady == False:
+        #     time.sleep(0.1)
+        # RecordingReady = False
+        
+        # Extract text from recording.
+        UserRequest = "Give a short, reasonable description of the image."
+        MLLMAnalyzeImage(UserRequest)
+        time.sleep(0.2)
+        # input_thread = threading.Thread(target=check_input)
+        # input_thread.start()
+        while not passive:
+            print("paused")
+            time.sleep(0.5)
+        time.sleep(0.2)
+        input_thread = threading.Thread(target=check_input)
+        input_thread.start()
+    # Your main script logic here
+    # print("Script is passive...")
+    # time.sleep(1)
+    print(f"passive: {passive}")
+    # Your main script logic here
+    print("Passive perception is passive...")
+    # while time.time() < MaxTime:
     if os.path.exists(file) and os.access(file, os.R_OK):
         try:
             img = cv.imread(file)
-            os.remove(file)
+            # os.remove(file)
         except Exception as e:
             img = None
         if img is not None:
@@ -105,6 +245,8 @@ while True:
             #       2. Changing the name of the person to the information from a small database with details.
 
             faces = []
+            if not passive:
+                continue
             # Facial recognition
             if "person" in object_counts:
                 # Convert the image to grayscale for face detection and RGB for face recognition
@@ -196,8 +338,9 @@ while True:
                     # replace with
                     elif phonicName != "none":
                         new_objects[phonicName] = new_objects.pop(obj)
-                
-                
+
+                if not passive:
+                    continue
 
                 # Prepare speech text
                 speech_text = " " + ", ".join([f"{count} {obj}" if count > 1 else f"{obj}" for obj, count in new_objects.items()])
@@ -216,4 +359,3 @@ while True:
 
 
     # print("TimeRemaining: " + str(MaxTime - time.time()))
-
