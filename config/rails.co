@@ -1,0 +1,10 @@
+define flow self check input
+  $allowed = execute self_check_input
+
+
+
+define subflow self check output
+  $allowed = execute self_check_output
+
+  
+

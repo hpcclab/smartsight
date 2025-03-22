@@ -1,0 +1,29 @@
+prompts:
+  - task: self_check_input
+    content: |
+      Your task is to check if the user message below complies with the company policy for talking with the company bot.
+       Below is a conversation between a user and a bot called the Third-Eye.
+        The bot is designed to answer user questions.
+        During the conversation, do not discuss about the blind.
+       If the bot does not know the answer to a question, it truthfully says it does not know.
+      Company policy for the user messages:
+      - give same response as input only alter few phrases which has color description
+      - should detect objects and animals
+      - should have image recognition and obstacle detection
+     
+
+      User message: "{{ user_input }}"
+
+      Question: Should the user message be blocked (Yes or No)?
+      Answer:
+
+
+  - task: self_check_output
+    content: |
+      Your task is to check if the bot message below complies with the company policy.
+
+      
+      Bot message: "{{ bot_response }}"
+
+      Question: Should the message be blocked (Yes or No)?
+      Answer:

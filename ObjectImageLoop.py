@@ -50,6 +50,7 @@ model = YOLO("yolov8s.pt")
 
 # Load an image
 image_path = "image.jpg"
+UploadImage_path = "image2.jpg"
 
 # minimum model confidence to claim a detected item.
 minConf = 0.73
@@ -120,7 +121,7 @@ def MLLMAnalyzeImage(UserRequest):
                 ]}
             ],
             temperature=0.7,
-            max_tokens=500
+            max_tokens=150
         )
         
         return response.choices[0].message.content
@@ -132,8 +133,9 @@ def MLLMAnalyzeImage(UserRequest):
     output_file = "results.txt"
 
     with open(output_file, "w") as result_file:
-        image_name = "image.jpg"
-        prompt = UserRequest + " Ensure response is reasonable and brief."
+        global UploadImage_path
+        image_name = UploadImage_path
+        prompt = UserRequest + " Use the picture to appropriately answer the prompt. Ensure response is reasonable, brief, and accurate to the image. Do your best to answer regardless of grammar issues."
         image_path = image_name # os.path.join(test_folder, image_name)
         
         if not os.path.exists(image_path):
@@ -142,17 +144,19 @@ def MLLMAnalyzeImage(UserRequest):
         else:
             print(f"Processing {image_name}...")
             
+            # Repeatedly try to get the image (in case of situation where we're trying at the same time that it's being written.)
+
             # Get AI response
             ai_response = get_completion(prompt, image_path)
             
             # Apply NeMo Guardrails
-            final_response = ai_response
-            # nemo(ai_response)
+            final_response = nemo(ai_response)
         
         # Write to output file
         result_file.write(f"Image: {image_name}\n")
         result_file.write(f"Prompt: {prompt}\n")
-        result_file.write(f"Response: {final_response}\n\n")
+        result_file.write(f"Original Response: {ai_response}\n")
+        result_file.write(f"Nemo Guardrails: {final_response}\n\n")
         
         # Convert to speech
         engine.say(final_response)
@@ -163,31 +167,30 @@ def MLLMAnalyzeImage(UserRequest):
     passive = True
 
 
-
-
-# Audio configuration
-FORMAT = pyaudio.paInt16
-CHANNELS = 1
-RATE = 44100  # Sampling rate
-CHUNK = 1024  # Size of each audio chunk
-# RECORD_SECONDS = 5  # Duration of recording if fixed duration needed
-WAVE_OUTPUT_FILENAME = "recording.wav"
-
-audio = pyaudio.PyAudio()
-
 # Function to record audio
-def record_audio():
-    stream = audio.open(format=FORMAT, channels=CHANNELS,
+def record_audio(audioObj):
+
+    # Audio configuration
+    FORMAT = pyaudio.paInt16
+    CHANNELS = 1
+    RATE = 44100  # Sampling rate
+    CHUNK = 1024  # Size of each audio chunk
+    # RECORD_SECONDS = 5  # Duration of recording if fixed duration needed
+    WAVE_OUTPUT_FILENAME = "recording.wav"
+
+    
+
+    stream = audioObj.open(format=FORMAT, channels=CHANNELS,
                         rate=RATE, input=True,
                         frames_per_buffer=CHUNK)
 
-    print("Recording... Press 'spacebar' again to stop.")
+    print("Recording... release spacebar to stop.")
     frames = []
 
     while True:
         data = stream.read(CHUNK)
         frames.append(data)
-        if keyboard.is_pressed("space"):  # Stop recording when spacebar is pressed again
+        if not keyboard.is_pressed("space"):  # Stop recording when spacebar is pressed again
             break
 
     print("Recording stopped.")
@@ -197,14 +200,27 @@ def record_audio():
     # Save the recording
     with wave.open(WAVE_OUTPUT_FILENAME, 'wb') as wf:
         wf.setnchannels(CHANNELS)
-        wf.setsampwidth(audio.get_sample_size(FORMAT))
+        wf.setsampwidth(audioObj.get_sample_size(FORMAT))
         wf.setframerate(RATE)
         wf.writeframes(b''.join(frames))
 
     print(f"Audio saved as {WAVE_OUTPUT_FILENAME}")
 
+def save_image_2():
+    global image_path
+    global UploadImage_path
+    while True:
+        if os.path.exists(image_path) and os.access(image_path, os.R_OK):
+            try:
+                img2 = cv.imread(image_path)
 
-
+                # os.remove(file)
+            except Exception as e:
+                img2 = None
+            if img2 is not None:
+                img2 = cv.rotate(img2, cv.ROTATE_90_COUNTERCLOCKWISE)
+                cv.imwrite(UploadImage_path, img2)
+                break
 
 ##### Split into a thread for passive and one listening for input.
 def check_input():
@@ -213,13 +229,15 @@ def check_input():
     while True:
         # user_input = input("Type 'exit' to stop the script: ")
         if keyboard.is_pressed('space'):
-            passive = False
             if not Recording:
-                print("Recording started by user")
+                passive = False
                 Recording = True
+                print("Recording started by user")
+                save_image_2()
                 print("Started recording...")
                 # keyboard.wait("space")  # Wait for the first spacebar press
-                record_audio()
+                audio = pyaudio.PyAudio()
+                record_audio(audio)
 
                 # Cleanup
                 audio.terminate()
@@ -235,9 +253,7 @@ def check_input():
                 # This will be removed when we want to run the mllm
                 # passive = True
                 break
-            print("Script interrupted by user.")
-            break
-        time.sleep(0.1)
+        time.sleep(0.05)
 
 passive = True
 input_thread = threading.Thread(target=check_input)
@@ -250,23 +266,21 @@ RecordingTranscription = "Transcription not found."
     #     input_thread.start()
     #     First = False
         
+TimeStartRecording = 0  
+
 
 while True:
     if not passive:
-        # mllm_thread = threading.Thread(target=MLLMAnalyzeImage)
-        # mllm_thread.start()
         # Wait until recording is ready.
         while Recording == True:
-            time.sleep(0.1)
-        
+            time.sleep(0.05)
+        print("Finished getting Active transcription")
         
         # Extract text from recording.
         UserRequest = RecordingTranscription
         
         MLLMAnalyzeImage(UserRequest)
         time.sleep(0.2)
-        # input_thread = threading.Thread(target=check_input)
-        # input_thread.start()
         while not passive:
             print("paused")
             time.sleep(0.5)
@@ -276,9 +290,9 @@ while True:
     # Your main script logic here
     # print("Script is passive...")
     # time.sleep(1)
-    print(f"passive: {passive}")
+    # print(f"passive: {passive}")
     # Your main script logic here
-    print("Passive perception is passive...")
+    print("Passive perception is active...")
     # while time.time() < MaxTime:
     if os.path.exists(file) and os.access(file, os.R_OK):
         try:
