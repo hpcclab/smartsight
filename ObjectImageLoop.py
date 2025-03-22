@@ -22,6 +22,18 @@ import nest_asyncio
 from openai import OpenAI
 from nemoguardrails import LLMRails, RailsConfig
 
+# For recording audio
+import keyboard  # For detecting keypresses
+import pyaudio   # For audio recording
+import wave      # For saving the audio file
+
+# For stt
+import whisper
+
+# Load whisper model
+whisperModel = whisper.load_model("base")
+
+
 
 # FACIAL recognition section
 encodings_path = "FaceDetection\\encodings.pickle"
@@ -40,7 +52,7 @@ model = YOLO("yolov8s.pt")
 image_path = "image.jpg"
 
 # minimum model confidence to claim a detected item.
-minConf = 0.7
+minConf = 0.73
 
 # After seeing something, if the confidence is >= this value, it'll continue remembering it.
 # PermConf = 0.55
@@ -153,24 +165,85 @@ def MLLMAnalyzeImage(UserRequest):
 
 
 
+# Audio configuration
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+RATE = 44100  # Sampling rate
+CHUNK = 1024  # Size of each audio chunk
+# RECORD_SECONDS = 5  # Duration of recording if fixed duration needed
+WAVE_OUTPUT_FILENAME = "recording.wav"
+
+audio = pyaudio.PyAudio()
+
+# Function to record audio
+def record_audio():
+    stream = audio.open(format=FORMAT, channels=CHANNELS,
+                        rate=RATE, input=True,
+                        frames_per_buffer=CHUNK)
+
+    print("Recording... Press 'spacebar' again to stop.")
+    frames = []
+
+    while True:
+        data = stream.read(CHUNK)
+        frames.append(data)
+        if keyboard.is_pressed("space"):  # Stop recording when spacebar is pressed again
+            break
+
+    print("Recording stopped.")
+    stream.stop_stream()
+    stream.close()
+
+    # Save the recording
+    with wave.open(WAVE_OUTPUT_FILENAME, 'wb') as wf:
+        wf.setnchannels(CHANNELS)
+        wf.setsampwidth(audio.get_sample_size(FORMAT))
+        wf.setframerate(RATE)
+        wf.writeframes(b''.join(frames))
+
+    print(f"Audio saved as {WAVE_OUTPUT_FILENAME}")
+
+
+
+
 ##### Split into a thread for passive and one listening for input.
 def check_input():
     global passive
-    # global RecordingReady
+    global Recording
     while True:
         # user_input = input("Type 'exit' to stop the script: ")
         if keyboard.is_pressed('space'):
-            # if RecordingReady:
-
-            print("Script interrupted by user.")
             passive = False
+            if not Recording:
+                print("Recording started by user")
+                Recording = True
+                print("Started recording...")
+                # keyboard.wait("space")  # Wait for the first spacebar press
+                record_audio()
+
+                # Cleanup
+                audio.terminate()
+                
+                # textToSpeech
+                transcription = whisperModel.transcribe("recording.wav")
+
+                print(transcription["text"])
+                global RecordingTranscription
+                RecordingTranscription = transcription["text"]
+                Recording = False
+
+                # This will be removed when we want to run the mllm
+                # passive = True
+                break
+            print("Script interrupted by user.")
             break
         time.sleep(0.1)
 
 passive = True
 input_thread = threading.Thread(target=check_input)
 input_thread.start()
-# RecordingReady = False
+Recording = False
+RecordingTranscription = "Transcription not found."
 
     # if First:
     #     input_thread = threading.Thread(target=check_input)
@@ -183,12 +256,13 @@ while True:
         # mllm_thread = threading.Thread(target=MLLMAnalyzeImage)
         # mllm_thread.start()
         # Wait until recording is ready.
-        # while RecordingReady == False:
-        #     time.sleep(0.1)
-        # RecordingReady = False
+        while Recording == True:
+            time.sleep(0.1)
+        
         
         # Extract text from recording.
-        UserRequest = "Give a short, reasonable description of the image."
+        UserRequest = RecordingTranscription
+        
         MLLMAnalyzeImage(UserRequest)
         time.sleep(0.2)
         # input_thread = threading.Thread(target=check_input)
@@ -197,7 +271,7 @@ while True:
             print("paused")
             time.sleep(0.5)
         time.sleep(0.2)
-        input_thread = threading.Thread(target=check_input)
+        input_thread = threading.Thread(target=check_input)  
         input_thread.start()
     # Your main script logic here
     # print("Script is passive...")
