@@ -9,6 +9,8 @@ import socket
 # TODO: SHOULD BE TRUE FOR FINAL PRESENTATION (If remote start is working by then)
 StartCapture = False
 
+useBluetooth = False
+
 # # Example usage
 # add_ip_to_known_hosts('192.168.1.1')
 # Create a WMI client
@@ -64,6 +66,23 @@ with open(IPFile, "w") as f:
 
     f.close()
 
+# If using Bluetooth, initialize the Bluetooth connection
+if useBluetooth:
+    try:
+        from BluetoothServer import init_bluetooth_server
+    except ImportError:
+        print("BluetoothServer module not found. Falling back to USB.")
+        useBluetooth = False
+if useBluetooth:
+    # wait for a Bluetooth connection.
+    bt_client_sock, bt_server_sock = init_bluetooth_server()
+    # can also send configuration file over Bluetooth.
+    with open(IPFile, "rb") as f:
+        config_data = f.read()
+    bt_client_sock.send(config_data)
+    print("Sent configuration over Bluetooth.")
+
+
 # Check for the device
 
 # Define the host to ping
@@ -105,37 +124,45 @@ print(f"Success resolving hostname: {host} to {DeviceIP}")
     
 
 # SendCmd = ["scp", "-i", "C:\Users\jacob\.ssh\PC-rPi0Key", "LaptopIP.txt", "jPi0@raspberrypi.local:~/Documents/SmartSight/SendImage/LaptopIP.txt"]
-SendCmd = ["scp", "-i", "C:\\Users\\jacob\\.ssh\\PC-rPi0Key", "LaptopIP.txt", "jPi0@" + host + ":~/Documents/SmartSight/SendImage/LaptopIP.txt"]
-result = subprocess.run(SendCmd)
-print(result.stdout)
-
+# If not using bluetooth, send config file via SCP. 
+if not useBluetooth:
+    SendCmd = ["scp", "-i", "C:\\Users\\jacob\\.ssh\\PC-rPi0Key", "LaptopIP.txt", "jPi0@" + host + ":~/Documents/SmartSight/SendImage/LaptopIP.txt"]
+    result = subprocess.run(SendCmd)
+    print(result.stdout)
 
 if StartCapture:
-
+    if useBluetooth:
+        bt_client_sock.send("START_CAPTURE".encode())
+        response = bt_client_sock.recv(1024)
+        print("Bluetooth response:", response.decode())
+    else:
     # SSH server credentials
-    hostname = DeviceIP # Raspberry Pi IP
-    port = 22  # Default SSH port
-    username = "jPi0"  # Replace with your username
+        hostname = DeviceIP # Raspberry Pi IP
+        port = 22  # Default SSH port
+        username = "jPi0"  # Replace with your username
 
-    # Command to execute
-    command = "python ~/Documents/SmartSight/SendImage/CaptureImage.py"  # Replace with the command you want to run
+        # Command to execute
+        command = "python ~/Documents/SmartSight/SendImage/CaptureImage.py"  # Replace with the command you want to run
 
-    # Create an SSH client
-    ssh_client = paramiko.SSHClient()
-    ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        # Create an SSH client
+        ssh_client = paramiko.SSHClient()
+        ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-    try:
-        # Connect to the Raspberry Pi
-        ssh_client.connect(hostname, port, username, key_filename="C:\\Users\\jacob\\.ssh\\PC-rPi0Key")
-        
-        # Execute the command
-        stdin, stdout, stderr = ssh_client.exec_command(command)
-        
-        # Print the output
-        print(stdout.read().decode())
-        print(stderr.read().decode())
-        
-        
-    finally:
-        # Close the connection
-        ssh_client.close()
+        try:
+            # Connect to the Raspberry Pi
+            ssh_client.connect(hostname, port, username, key_filename="C:\\Users\\jacob\\.ssh\\PC-rPi0Key")
+            
+            # Execute the command
+            stdin, stdout, stderr = ssh_client.exec_command(command)
+            
+            # Print the output
+            print(stdout.read().decode())
+            print(stderr.read().decode())
+            
+            
+        finally:
+            # Close the connection
+            ssh_client.close()
+if useBluetooth:
+    bt_client_sock.close()
+    bt_server_sock.close()
