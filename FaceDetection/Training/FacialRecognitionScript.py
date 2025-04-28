@@ -14,7 +14,7 @@ def IDFace(image_path, output_csv, encodings_path, result_image_path):
     encodings_path += "encodings.pickle"
     # Use this xml file for face detection with Haar cascades
     #https://github.com/opencv/opencv/blob/master/data/haarcascades/haarcascade_frontalface_default.xml
-    face_cascade_path = "C:\\Users\\jacob\\Documents\\UNT\\SmartSight\\SmartSightProject\\FaceDetection\\FacialRecognitionTest\\haarcascade_frontalface_default.xml"
+    face_cascade_path = "C:\\Users\\jacob\\Documents\\UNT\\SmartSight\\SmartSightProject\\FaceDetection\\haarcascade_frontalface_default.xml"
 
     # Load the known faces and embeddings along with OpenCV's Haar
     # cascade for face detection
@@ -36,7 +36,7 @@ def IDFace(image_path, output_csv, encodings_path, result_image_path):
 
     det_process_start_time = time.time()
     # Detect faces in the grayscale image
-    rects = detector.detectMultiScale(gray, scaleFactor=1.3, 
+    rects = detector.detectMultiScale(rgb, scaleFactor=1.3, 
                                       minNeighbors=6, minSize=(40, 40),
                                       flags=cv2.CASCADE_SCALE_IMAGE)
 
@@ -147,8 +147,8 @@ def folderScan(folder, output_csv_folder, encodings_path):
         IDFace(filepath, output_csv, encodings_path, output_csv_folder+"\\"+file+"Result.png")
         
 parser = argparse.ArgumentParser(description='read image data')
-parser.add_argument('--images', help='Path to input image folder (images to be recognized).', default='C:\\Users\\jacob\\Documents\\UNT\\SmartSight\\SmartSightProject\\FaceDetection\\FacialRecognitionTest\\testImages')
-parser.add_argument('--csvout', help='Path to csv file for results.', default='C:\\Users\\jacob\\Documents\\UNT\\SmartSight\\SmartSightProject\\FaceDetection\\FacialRecognitionTest\\results')
-parser.add_argument('--encodings', help='Path to encodings file for processing faces.', default='C:\\Users\\jacob\\Documents\\UNT\\SmartSight\\SmartSightProject\\FaceDetection\\FacialRecognitionTest\\encodings\\')
+parser.add_argument('--images', help='Path to input image folder (images to be recognized).', default='C:\\Users\\jacob\\Documents\\UNT\\SmartSight\\SmartSightProject\\FaceDetection\\Training\\testImages')
+parser.add_argument('--csvout', help='Path to csv file for results.', default='C:\\Users\\jacob\\Documents\\UNT\\SmartSight\\SmartSightProject\\FaceDetection\\Training\\results')
+parser.add_argument('--encodings', help='Path to encodings file for processing faces.', default='C:\\Users\\jacob\\Documents\\UNT\\SmartSight\\SmartSightProject\\FaceDetection\\Training\\encodings\\')
 args = parser.parse_args()
 folderScan(args.images, args.csvout, args.encodings)

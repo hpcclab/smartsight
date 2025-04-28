@@ -75,8 +75,6 @@ engine.setProperty('rate', 150)
 
 file = "image.jpg"
 
-MaxTime = time.time() + 120
-
 class objectInfo:
     def __init__(self, obj, count, frames):
         self.obj = obj
@@ -91,15 +89,27 @@ PeoplePhonics = {"Doctor Mosen Amini Salehi":"Doctor Ahmeeni", "cup":"drink"}
 PeopleInfo = {"Doctor Mosen Amini Salehi":"Your professor from the University of North Texas"}
 EverDetected = {}
 
+# Time Tracking variables
+# Active Mode
+TimeKeyPressed = 0
+TimeKeyReleased = 0
+TimeSpeechRecognitionStart = 0
+TimeMLLMStart = 0
+TimeNemoStart = 0
+TimeTTSStart = 0
+
+# Passive Mode
+
+
 def MLLMAnalyzeImage(UserRequest):
     # Initialize Hive AI client
     client = OpenAI(
         base_url="https://api.thehive.ai/api/v3/",  # Hive AI's endpoint
-        api_key="HwDF5vDdbekdQbWsjcrsAXfsZo53N2v7"  # Replace with your API key
+        api_key="key1"  # Replace with your API key
     )
 
     # Set up NeMo Guardrails
-    NVIDIA_API_KEY = "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"
+    NVIDIA_API_KEY = "key2"
     nest_asyncio.apply()
     os.environ["NVIDIA_API_KEY"] = NVIDIA_API_KEY
     config = RailsConfig.from_path("./config")
@@ -107,11 +117,19 @@ def MLLMAnalyzeImage(UserRequest):
 
     # Initialize Text-to-Speech
     global engine
+    global TimeKeyPressed
+    global TimeKeyReleased
+    global TimeSpeechRecognitionStart
+    global TimeMLLMStart
+    global TimeNemoStart
+    global TimeTTSStart
+
 
     def get_completion(prompt, image_path, model="meta-llama/llama-3.2-11b-vision-instruct"):
         with open(image_path, "rb") as image_file:
             base64_image = base64.b64encode(image_file.read()).decode("utf-8")
-        
+        global TimeMLLMStart
+        TimeMLLMStart = time.time()
         response = client.chat.completions.create(
             model=model,
             messages=[
@@ -121,7 +139,7 @@ def MLLMAnalyzeImage(UserRequest):
                 ]}
             ],
             temperature=0.7,
-            max_tokens=150
+            max_tokens=35
         )
         
         return response.choices[0].message.content
@@ -129,10 +147,10 @@ def MLLMAnalyzeImage(UserRequest):
     def nemo(text):
         completion = rails.generate(messages=[{"role": "user", "content": text}])
         return completion["content"]
-
+ 
     output_file = "results.txt"
 
-    with open(output_file, "w") as result_file:
+    with open(output_file, "a") as result_file:
         global UploadImage_path
         image_name = UploadImage_path
         prompt = UserRequest + " Use the picture to appropriately answer the prompt. Ensure response is reasonable, brief, and accurate to the image. Do your best to answer regardless of grammar issues."
@@ -143,23 +161,46 @@ def MLLMAnalyzeImage(UserRequest):
             final_response = "No Response because image not found."
         else:
             print(f"Processing {image_name}...")
-            
-            # Repeatedly try to get the image (in case of situation where we're trying at the same time that it's being written.)
 
             # Get AI response
             ai_response = get_completion(prompt, image_path)
             
+            TimeNemoStart = time.time()
             # Apply NeMo Guardrails
             final_response = nemo(ai_response)
         
+        TimeTTSStart = time.time()
+        # Convert to speech
+        engine.say(final_response)
+        TimeTTSProcessDone = time.time() 
+        # TimeKeyPressed = 0
+        # TimeKeyReleased = 0
+        TimePressedToRelease = TimeKeyReleased - TimeKeyPressed
+        # TimeSpeechRecognitionStart = 0
+        TimeToRecognize = TimeMLLMStart - TimeSpeechRecognitionStart
+        # TimeMLLMStart = 0
+        TimeMLLM = TimeNemoStart - TimeMLLMStart
+        # TimeNemoStart = 0
+        TimeNemo = TimeTTSStart - TimeNemoStart
+        # TimeTTSStart = 0
+        TimeTTS = TimeTTSProcessDone - TimeTTSStart
+
+        TimeReleaseToSpeech = TimeTTSProcessDone - TimeKeyReleased
+
         # Write to output file
         result_file.write(f"Image: {image_name}\n")
         result_file.write(f"Prompt: {prompt}\n")
         result_file.write(f"Original Response: {ai_response}\n")
         result_file.write(f"Nemo Guardrails: {final_response}\n\n")
+        # result_file.write(f"TimePressedToRelease: {TimePressedToRelease}\n")
+        result_file.write(f"TimeToRecognize: {TimeToRecognize}\n")
+        result_file.write(f"TimeMLLM: {TimeMLLM}\n")
+        result_file.write(f"TimeNemo: {TimeNemo}\n")
+        # result_file.write(f"TimeTTS: {TimeTTS}\n")
+        result_file.write(f"TimeReleaseToSpeech: {TimeReleaseToSpeech}\n\n")
+        result_file.write("---------------------\n")
+
         
-        # Convert to speech
-        engine.say(final_response)
         engine.runAndWait()
         
         print(f"Completed: {image_name}\n")
@@ -192,7 +233,8 @@ def record_audio(audioObj):
         frames.append(data)
         if not keyboard.is_pressed("space"):  # Stop recording when spacebar is pressed again
             break
-
+    global TimeKeyReleased 
+    TimeKeyReleased = time.time()
     print("Recording stopped.")
     stream.stop_stream()
     stream.close()
@@ -222,14 +264,28 @@ def save_image_2():
                 cv.imwrite(UploadImage_path, img2)
                 break
 
+def RecognizeSpeech():
+    global TimeSpeechRecognitionStart
+    TimeSpeechRecognitionStart = time.time()
+    # textToSpeech
+    transcription = whisperModel.transcribe("recording.wav")
+
+    print(transcription["text"])
+    global RecordingTranscription
+    RecordingTranscription = transcription["text"]
+
 ##### Split into a thread for passive and one listening for input.
 def check_input():
     global passive
     global Recording
+    global TimeKeyPressed
+
+    global TimeSpeechRecognitionStart
     while True:
         # user_input = input("Type 'exit' to stop the script: ")
         if keyboard.is_pressed('space'):
             if not Recording:
+                TimeKeyPressed = time.time()
                 passive = False
                 Recording = True
                 print("Recording started by user")
@@ -238,16 +294,10 @@ def check_input():
                 # keyboard.wait("space")  # Wait for the first spacebar press
                 audio = pyaudio.PyAudio()
                 record_audio(audio)
-
                 # Cleanup
                 audio.terminate()
                 
-                # textToSpeech
-                transcription = whisperModel.transcribe("recording.wav")
-
-                print(transcription["text"])
-                global RecordingTranscription
-                RecordingTranscription = transcription["text"]
+                RecognizeSpeech()
                 Recording = False
 
                 # This will be removed when we want to run the mllm
@@ -266,9 +316,6 @@ RecordingTranscription = "Transcription not found."
     #     input_thread.start()
     #     First = False
         
-TimeStartRecording = 0  
-
-
 while True:
     if not passive:
         # Wait until recording is ready.
@@ -277,9 +324,16 @@ while True:
         print("Finished getting Active transcription")
         
         # Extract text from recording.
-        UserRequest = RecordingTranscription
         
+
+        # For experimentation testing purposes
+        # MLLMAnalyzeImage(UserRequest)
+        # for x in range(10):
+        # TimeKeyReleased = time.time()
+        # RecognizeSpeech()
+        UserRequest = RecordingTranscription
         MLLMAnalyzeImage(UserRequest)
+
         time.sleep(0.2)
         while not passive:
             print("paused")
@@ -287,13 +341,8 @@ while True:
         time.sleep(0.2)
         input_thread = threading.Thread(target=check_input)  
         input_thread.start()
-    # Your main script logic here
-    # print("Script is passive...")
-    # time.sleep(1)
-    # print(f"passive: {passive}")
-    # Your main script logic here
+        
     print("Passive perception is active...")
-    # while time.time() < MaxTime:
     if os.path.exists(file) and os.access(file, os.R_OK):
         try:
             img = cv.imread(file)
@@ -444,6 +493,3 @@ while True:
             # cv.pollKey()
             
             ######################
-
-
-    # print("TimeRemaining: " + str(MaxTime - time.time()))
