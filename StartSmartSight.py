@@ -3,6 +3,7 @@ import os
 import wmi
 import subprocess
 import socket
+import ipaddress
 
 # Start Smart Sight (WINDOWS EDGE PROGRAM)
 
@@ -28,15 +29,26 @@ IPAddress = "LAPTOP.IP.NOT.FOUND."
 #     print(f"Default Gateway: {adapter.DefaultIPGateway[0]}")
 #     print(f"DNS Servers: {adapter.DNSServerSearchOrder}")
 #     print("----------")
+
+def is_ipv4_address(string):
+    try:
+        ipaddress.IPv4Address(string)
+        return True
+    except ipaddress.AddressValueError:
+        return False
+
+NeedPercent = False
 GadgetNotFound = True
 IPv6NotFound = True
 for adapter in adapters:
     if "Gadget" in str(adapter.Description):
         GadgetNotFound = False
         for ip in adapter.IPAddress:
-            if "fe80" in str(ip):
+            if "fe80" in str(ip) or is_ipv4_address(ip):
                 IPAddress = str(ip)
                 IPv6NotFound = False
+                if "fe80" in str(ip):
+                    NeedPercent = True
 if GadgetNotFound:
     print("ERROR: Gaget network adapter NOT FOUND")
     quit()
@@ -56,7 +68,8 @@ with open(PubKeyPath, "r") as f:
 SSHServerPubKey = SSHServerPubKey.split('=', 1)[0]
 SSHServerPubKey += "="
 
-IPAddress += "%usb0"
+if NeedPercent:
+    IPAddress += "%usb0"
 print(IPAddress)
 with open(IPFile, "w") as f:
     f.write(IPAddress + "\n")
