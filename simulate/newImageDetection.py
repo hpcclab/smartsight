@@ -19,7 +19,7 @@ if choice == "1":
             img = cv.rotate(img, cv.ROTATE_90_COUNTERCLOCKWISE)
             if img is not None:
                 os.remove(file)
-                cv.imwrite(f"{simFolder}/image{imgNum}.jpg", img)
+                cv.imwrite(f"{simFolder}/images/image{imgNum}.jpg", img)
                 imgNum += 1
                 # cv.imshow("image", img)
                 # cv.pollKey()
@@ -28,12 +28,12 @@ if choice == "1":
 
 if choice == "2":
     while True:
-        if os.path.exists(f"{simFolder}/image{imgNum}.jpg"):    
-            img = cv.imread(f"{simFolder}/image{imgNum}.jpg")
+        if os.path.exists(f"{simFolder}/images/image{imgNum}.jpg"):    
+            img = cv.imread(f"{simFolder}/images/image{imgNum}.jpg")
             img = cv.rotate(img, cv.ROTATE_90_COUNTERCLOCKWISE)
             if img is not None:
                 # os.remove(file)
-                cv.imwrite(f"image.jpg", img)
+                cv.imwrite(f"{simFolder}/images/image{imgNum}.jpg", img)
                 imgNum += 1
                 time.sleep(1)
         else:
