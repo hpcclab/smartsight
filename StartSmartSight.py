@@ -4,6 +4,7 @@ import wmi
 import subprocess
 import socket
 import ipaddress
+import Server
 
 # Start Smart Sight (WINDOWS EDGE PROGRAM)
 
@@ -59,12 +60,14 @@ EdgeABSPath = os.path.abspath(__file__)
 EdgeUsername = os.environ.get('USERNAME')
 EdgeABSPath = EdgeABSPath.rsplit('\\', 1)[0]
 
-PubKeyPath = "C:\ProgramData\ssh\ssh_host_ecdsa_key.pub"
-with open(PubKeyPath, "r") as f:
-    SSHServerPubKey = f.read()
-    f.close()
-SSHServerPubKey = SSHServerPubKey.split('=', 1)[0]
-SSHServerPubKey += "="
+# PubKeyPath = "C:\ProgramData\ssh\ssh_host_ecdsa_key.pub"
+# with open(PubKeyPath, "r") as f:
+#     SSHServerPubKey = f.read()
+#     f.close()
+# SSHServerPubKey = SSHServerPubKey.split('=', 1)[0]
+# SSHServerPubKey += "="
+
+SSHServerPubKey = "NonAdminFriendlyPlaceholder="
 
 if NeedPercent:
     IPAddress += "%usb0"
@@ -118,7 +121,7 @@ print(f"Success resolving hostname: {host} to {DeviceIP}")
     
 
 # SendCmd = ["scp", "-i", "C:\Users\jacob\.ssh\PC-rPi0Key", "LaptopIP.txt", "jPi0@raspberrypi.local:~/Documents/SmartSight/SendImage/LaptopIP.txt"]
-SendCmd = ["scp", "-i", "C:\\Users\\jacob\\.ssh\\PC-rPi0Key", "LaptopIP.txt", "jPi0@" + host + ":~/Documents/SmartSight/SendImage/LaptopIP.txt"]
+SendCmd = ["scp", "-i", "C:\\Users\\jacob\\.ssh\\PC-rPi0Key", "LaptopIP.txt", "jPi0@" + DeviceIP + ":~/Documents/SmartSight/SendImage/LaptopIP.txt"]
 result = subprocess.run(SendCmd)
 print(result.stdout)
 
@@ -152,3 +155,6 @@ if StartCapture:
     finally:
         # Close the connection
         ssh_client.close()
+
+
+Server.runServer()

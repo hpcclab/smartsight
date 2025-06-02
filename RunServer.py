@@ -1,0 +1,3 @@
+import Server
+
+Server.runServer()
