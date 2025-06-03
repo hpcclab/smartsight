@@ -6,20 +6,20 @@ import os
 import sys
 
 # Project directory
-project_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+project_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Directory where images are located
-dataset_dir = project_dir + "\\dataset"
+dataset_dir = os.path.join(project_dir, 'dataset')
 
 # Where to put the pickled encodings
-pickle_dir = project_dir + "\\encodings"
+pickle_dir = os.path.join(project_dir, 'encodings')
 
 # Initialize lists to store known encodings and names
 knownEncodings = []
 knownNames = []
 if False:
-# Start processing faces
-print("[INFO] start processing faces...")
+    # Start processing faces
+    print("[INFO] start processing faces...")
 
 # Loop over the folders in the dataset directory (each folder represents a person)
 for name in os.listdir(dataset_dir):

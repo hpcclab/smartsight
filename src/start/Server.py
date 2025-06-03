@@ -1,10 +1,17 @@
 import socket
 import time
+from pathlib import Path
 
 HOST = "0.0.0.0"  # Listen on all interfaces
 PORT = 8888  # Arbitrary port
 iter = 111
+
+script_dir = Path(__file__).resolve().parent
+temp_dir   = (script_dir.parent.parent / 'temp').resolve()
+
 def runServer():
+    #Make sure temp directory exists
+    temp_dir.mkdir(parents=True, exist_ok=True)
     while True:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.bind((HOST, PORT))
@@ -13,7 +20,9 @@ def runServer():
             conn, addr = s.accept()
             with conn:
                 print('Connected by', addr)
-                with open(f"image.jpg", "wb") as file:
+                # Write incoming bytes into temp/image.jpg
+                output_path = temp_dir/"image.jpg"
+                with open(output_path, "wb") as file:
                     while True:
                         data = conn.recv(1024)
                         if not data: break

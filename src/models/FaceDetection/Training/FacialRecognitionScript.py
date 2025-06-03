@@ -143,8 +143,8 @@ def folderScan(folder, output_csv_folder, encodings_path):
         os.remove(output_csv)
     for file in os.listdir(folder):
         filepath = os.path.join(folder, file)
-        # output_csv = os.path.join(output_csv_folder, f"{os.path.splitext(file)[0]}_results.csv")
-        IDFace(filepath, output_csv, encodings_path, output_csv_folder+"\\"+file+"Result.png")
+        result_img = os.path.join(output_csv_folder, f"{os.path.splitext(file)[0]}_Result.png")
+        IDFace(filepath, output_csv, encodings_path, result_img)
         
 parser = argparse.ArgumentParser(description='read image data')
 parser.add_argument('--images', help='Path to input image folder (images to be recognized).', default='C:\\Users\\jacob\\Documents\\UNT\\SmartSight\\SmartSightProject\\FaceDetection\\Training\\testImages')

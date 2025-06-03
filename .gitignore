@@ -1,6 +1,10 @@
 *.wav
-\FaceDetection\encodings
-\FaceDetection\referenceCode
-\FaceDetection\Rowan
-\FaceDetection\results
+src/models/FaceDetection/encodings/
+src/models/FaceDetection/referenceCode/
+src/models/FaceDetection/Rowan/
+src/models/FaceDetection/results/
 image.jpg
+/sscv
+results.txt
+config
+/temp

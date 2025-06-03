@@ -10,9 +10,10 @@ IPAddress = "IP.NOT.RETRIEVED"
 SSHServerPubKey = "KEY NOT AVAILABLE"
 EdgeABSPath = "PathNotAvailable"
 EdgeUsername = "UsernameNotAvailable"
-AbsPath = "/home/jPi0/Documents/SmartSight/SendImage/"
+base_dir = os.path.dirname(os.path.abspath(__file__))
+AbsPath = os.path.join(base_dir, '..', 'SendImage')  # adjust as needed
 lines = []
-IPFile = AbsPath + "LaptopIP.txt"
+IPFile = os.path.join(AbsPath, "LaptopIP.txt")
 if os.path.exists(IPFile):
     with open(IPFile, "r") as f:
         lines = f.readlines()
@@ -56,7 +57,9 @@ TakePictureCmd = ["kill", "-SIGUSR1"]
 StopCmd = ["kill", "-SIGUSR2"]
 
 # Use IP in transfer.
-SendCmd = ["scp", "-i", "~/.ssh/rp0keyjacob", outputName, f"{EdgeUsername}@[{IPAddress}]:/{EdgeABSPath}/image.jpg"]
+key_path = os.path.expanduser("~/.ssh/rp0keyjacob")
+remote_path = f"{EdgeUsername}@{IPAddress.strip()}:{EdgeABSPath}/image.jpg"
+SendCmd = ["scp", "-i", key_path, outputName, remote_path]
 
 activationTime = 10.0
 framerate = 4.0

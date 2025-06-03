@@ -33,24 +33,26 @@ import whisper
 # Load whisper model
 whisperModel = whisper.load_model("base")
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
-
-# FACIAL recognition section
-encodings_path = "FaceDetection\\encodings.pickle"
-face_cascade_path = "FaceDetection\\haarcascade_frontalface_default.xml"
+# point at the actual FaceDetection folder under src/models
+encodings_path    = os.path.join(script_dir, 'models', 'FaceDetection', 'encodings.pickle')
+face_cascade_path = os.path.join(script_dir, 'models', 'FaceDetection', 'haarcascade_frontalface_default.xml')
 
 # Load facial recognition encodings
 data = pickle.loads(open(encodings_path, "rb").read())
 detector = cv.CascadeClassifier()
 detector.load(face_cascade_path)
 
+# load the YOLO weights from the models folder
+yolo_model_path = os.path.join(script_dir, 'models', 'yolov8s.pt')
+model = YOLO(yolo_model_path)
 
-# Load the YOLOv8 model (pretrained on COCO dataset)
-model = YOLO("yolov8s.pt")
-
-# Load an image
-image_path = "image.jpg"
-UploadImage_path = "image2.jpg"
+# pull images from the shared temp directory instead of project root
+temp_dir         = os.path.abspath(os.path.join(script_dir, '..', 'temp'))
+file             = os.path.join(temp_dir, 'image.jpg')
+image_path       = file
+UploadImage_path = os.path.join(temp_dir, 'image2.jpg')
 
 # minimum model confidence to claim a detected item.
 minConf = 0.73
@@ -72,8 +74,6 @@ engine.setProperty('volume', 1.0)
 
 # Adjust speaking rate
 engine.setProperty('rate', 150)
-
-file = "image.jpg"
 
 class objectInfo:
     def __init__(self, obj, count, frames):
@@ -105,11 +105,11 @@ def MLLMAnalyzeImage(UserRequest):
     # Initialize Hive AI client
     client = OpenAI(
         base_url="https://api.thehive.ai/api/v3/",  # Hive AI's endpoint
-        api_key="key1"  # Replace with your API key
+        api_key="HwDF5vDdbekdQbWsjcrsAXfsZo53N2v7"  # Replace with your API key
     )
 
     # Set up NeMo Guardrails
-    NVIDIA_API_KEY = "key2"
+    NVIDIA_API_KEY = "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"
     nest_asyncio.apply()
     os.environ["NVIDIA_API_KEY"] = NVIDIA_API_KEY
     config = RailsConfig.from_path("./config")
