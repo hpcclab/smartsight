@@ -1,14 +1,3 @@
-"""
-smartsight2.py
-
-Refactored main script using modular operation classes:
-- ObjectDetection
-- FacePerception
-- ActiveMode
-
-All logic and variable names preserved verbatim from original smartsight.py.
-"""
-
 import cv2 as cv
 import os
 import time
@@ -27,12 +16,12 @@ from operations.face_perception import FacePerception
 from operations.active_mode import ActiveMode
 
 # ----------------------------------------------------------------------------
-# Setup paths and load models
+# Setup path
 # ----------------------------------------------------------------------------
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Facial recognition files
-encodings_path    = os.path.join(script_dir, 'models', 'FaceDetection', 'encodings.pickle')
+encodings_path = os.path.join(script_dir, 'models', 'FaceDetection', 'encodings.pickle')
 face_cascade_path = os.path.join(script_dir, 'models', 'FaceDetection', 'haarcascade_frontalface_default.xml')
 
 data = pickle.loads(open(encodings_path, "rb").read())
@@ -44,9 +33,9 @@ yolo_model_path = os.path.join(script_dir, 'models', 'yolov8s.pt')
 model = YOLO(yolo_model_path)
 
 # Shared temp directory for incoming frames
-temp_dir         = os.path.abspath(os.path.join(script_dir, '..', 'temp'))
-file             = os.path.join(temp_dir, 'image.jpg')
-image_path       = file
+temp_dir = os.path.abspath(os.path.join(script_dir, '..', 'temp'))
+file = os.path.join(temp_dir, 'image.jpg')
+image_path = file
 UploadImage_path = os.path.join(temp_dir, 'image2.jpg')
 
 # Detection parameters
@@ -63,7 +52,7 @@ engine.setProperty('volume', 1.0)
 engine.setProperty('rate', 150)
 
 # ----------------------------------------------------------------------------
-# Data structures for passive-mode persistence
+# Passive-mode persistence
 # ----------------------------------------------------------------------------
 class objectInfo:
     def __init__(self, obj, count, frames):
@@ -76,10 +65,12 @@ class objectInfo:
 prev_detected_objects = []
 
 PeoplePhonics = {"Doctor Mosen Amini Salehi":"Doctor Ahmeeni", "cup":"drink"}
-PeopleInfo    = {"Doctor Mosen Amini Salehi":"Your professor from the University of North Texas"}
-EverDetected  = {}
+PeopleInfo = {"Doctor Mosen Amini Salehi":"Your professor from the University of North Texas"}
+EverDetected = {}
 
+# ----------------------------------------------------------------------------
 # Time-tracking variables for active mode
+# ----------------------------------------------------------------------------
 TimeKeyPressed = 0
 TimeKeyReleased = 0
 TimeSpeechRecognitionStart = 0
@@ -88,14 +79,14 @@ TimeNemoStart = 0
 TimeTTSStart = 0
 
 # ----------------------------------------------------------------------------
-# Instantiate modular operation classes
+# Instantiate modular operation classes (active mode, passive mode, etc)
 # ----------------------------------------------------------------------------
 object_detector = ObjectDetection(model, minConf)
 face_perceiver  = FacePerception(detector, data)
-active_mode      = ActiveMode()
+active_mode = ActiveMode()
 
 # ----------------------------------------------------------------------------
-# Helper functions (unchanged logic)
+# Helper functions
 # ----------------------------------------------------------------------------
 
 def save_image_2():
@@ -117,7 +108,6 @@ def save_image_2():
 # ----------------------------------------------------------------------------
 # Input thread for active-mode trigger
 # ----------------------------------------------------------------------------
-
 def check_input():
     global passive, Recording, TimeKeyPressed, RecordingTranscription
     while True:
@@ -159,6 +149,7 @@ while True:
         # Perform LLM + image analysis
         UserRequest = RecordingTranscription
         active_mode.MLLMAnalyzeImage(UserRequest, UploadImage_path)
+        passive = True 
 
         # Pause before resuming passive perception
         time.sleep(0.2)
@@ -228,4 +219,4 @@ while True:
                 engine.say(speech_text)
                 engine.runAndWait()
             else:
-                print("No new objects detected.") 
+                print("No new objects detected.")

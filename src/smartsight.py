@@ -25,8 +25,7 @@ from nemoguardrails import LLMRails, RailsConfig
 # For recording audio
 import keyboard  # For detecting keypresses
 import pyaudio   # For audio recording
-import wave      # For saving the audio file
-
+import wave      # For saving the audio file 
 # For stt
 import whisper
 
@@ -40,6 +39,7 @@ encodings_path    = os.path.join(script_dir, 'models', 'FaceDetection', 'encodin
 face_cascade_path = os.path.join(script_dir, 'models', 'FaceDetection', 'haarcascade_frontalface_default.xml')
 
 # Load facial recognition encodings
+
 data = pickle.loads(open(encodings_path, "rb").read())
 detector = cv.CascadeClassifier()
 detector.load(face_cascade_path)

@@ -21,3 +21,4 @@ class ObjectDetection:
                     class_name = self.model.names[class_id]
                     object_counts[class_name] += 1
         return object_counts 
+ 

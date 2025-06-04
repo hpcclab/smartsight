@@ -36,7 +36,7 @@ if choice == "2":
         image_path = os.path.join(simFolder, 'images', f"image{imgNum}.jpg")
         if os.path.exists(image_path):
             img = cv.imread(image_path)
-            img = cv.rotate(img, cv.ROTATE_90_COUNTERCLOCKWISE)
+            #img = cv.rotate(img, cv.ROTATE_90_COUNTERCLOCKWISE)
             if img is not None:
                 # write the rotated frame into our temp folder as image.jpg
                 cv.imwrite(os.path.join(tempFolder, file), img)

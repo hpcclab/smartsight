@@ -9,6 +9,8 @@ import pyttsx3
 import nest_asyncio
 from openai import OpenAI
 from nemoguardrails import LLMRails, RailsConfig
+from operations.commands import Commands
+from paddleocr import PaddleOCR
 
 class ActiveMode:
     def __init__(self):
@@ -34,6 +36,9 @@ class ActiveMode:
             base_url="https://api.thehive.ai/api/v3/",
             api_key="key1"
         )
+        # Initialize command handler for OCR commands
+        ocr_engine = PaddleOCR(use_angle_cls=True, lang='en', gpu=False)
+        self.commands = Commands(ocr_engine, conf_threshold=0.5, min_length=2)
 
     def record_audio(self, audioObj):
         FORMAT = pyaudio.paInt16
@@ -92,6 +97,20 @@ class ActiveMode:
         return completion["content"]
 
     def MLLMAnalyzeImage(self, UserRequest, UploadImage_path, output_file="results.txt"):
+        # Check for 'command' mode: OCR text reading
+        req_lower = "command read this text" #UserRequest.lower()
+        if "command" in req_lower and ("read" in req_lower or "text" in req_lower):
+            lines = self.commands.read_text(UploadImage_path)
+            if lines:
+                paragraph = ". ".join(lines)
+                print("Command read text:", paragraph)
+                self.engine.say(paragraph)
+                self.engine.runAndWait()
+            elif not lines or len(lines) <= 0:
+                print("No text detected")
+                self.engine.say("No text detected")
+            self.engine.runAndWait()
+            return
         with open(output_file, "a") as result_file:
             image_name = UploadImage_path
             prompt = UserRequest + " Use the picture to appropriately answer the prompt. Ensure response is reasonable, brief, and accurate to the image. Do your best to answer regardless of grammar issues."
