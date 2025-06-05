@@ -141,24 +141,20 @@ RecordingTranscription = "Transcription not found."
 while True:
     # ---------------------- Active Mode ----------------------
     if not passive:
-        # Wait for recording to finish
         while Recording:
             time.sleep(0.05)
         print("Finished getting Active transcription")
 
-        # Perform LLM + image analysis
         UserRequest = RecordingTranscription
         active_mode.MLLMAnalyzeImage(UserRequest, UploadImage_path)
         passive = True 
 
-        # Pause before resuming passive perception
         time.sleep(0.2)
         while not passive:
             print("paused")
             time.sleep(0.5)
         time.sleep(0.2)
 
-        # Restart input listener for next activation
         input_thread = threading.Thread(target=check_input)
         input_thread.start()
 
@@ -173,11 +169,8 @@ while True:
         if img is not None:
             img = cv.rotate(img, cv.ROTATE_90_COUNTERCLOCKWISE)
 
-            # Modular detection steps
             object_counts = object_detector.detect(img)
             object_counts = face_perceiver.recognize(img, object_counts, passive)
-
-            # Compute new detections vs. permanence
             new_objects = {
                 obj: count
                 for obj, count in object_counts.items()
@@ -186,7 +179,7 @@ while True:
             for old in prev_detected_objects:
                 print(str(old))
 
-            for old in list(prev_detected_objects):  # update persistence
+            for old in list(prev_detected_objects): 
                 if old.obj not in object_counts:
                     old.frames -= 1
                     if old.frames < 0:
@@ -195,7 +188,6 @@ while True:
                     old.frames = ObjectPerminanceFrames
                     old.count = object_counts[old.obj]
 
-            # Speak new detections
             if new_objects:
                 for obj, count in new_objects.items():
                     prev_detected_objects.append(objectInfo(obj, count, ObjectPerminanceFrames))

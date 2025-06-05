@@ -11,7 +11,6 @@ class ObjectDetection:
         object_counts = Counter()
         conf = 0
         results = self.model(img)  # Run inference
-        # Process results and count objects
         for result in results:
             for box in result.boxes:
                 conf = box.conf

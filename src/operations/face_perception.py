@@ -9,9 +9,7 @@ class FacePerception:
     def recognize(self, img, object_counts, passive):
         if not passive:
             return object_counts
-        # Facial recognition
         if "person" in object_counts:
-            # Convert the image to grayscale for face detection and RGB for face recognition
             gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
             rgb = cv.cvtColor(img, cv.COLOR_BGR2RGB)
 
@@ -20,15 +18,16 @@ class FacePerception:
                                                    minNeighbors=6, minSize=(40, 40),
                                                    flags=cv.CASCADE_SCALE_IMAGE)
             boxes = [(y, x + w, y + h, x) for (x, y, w, h) in rects]
+            
             # Compute the facial embeddings for each face bounding box
             encodings = face_recognition.face_encodings(rgb, boxes)
             names = []
             tolerance = 0.5
             confidences = []
             currentname = "Unknown"
-            # Loop over the facial embeddings
+  
+  
             for encoding in encodings:
-                # Attempt to match each face in the input image to our known encodings
                 distances = face_recognition.face_distance(self.data["encodings"], encoding)
                 
                 matches = []
@@ -40,12 +39,10 @@ class FacePerception:
                     if m:
                         confidences.append(1-i)
                 
-                name = "Unknown"  # Default to "Unknown" if no match is found
+                name = "Unknown" 
                 if True in matches:
-                    # Get the indices of all matched faces and count each match
                     matchedIdxs = [i for (i, b) in enumerate(matches) if b]
                     counts = {}
-                    # Count the number of times each face was matched
                     for i in matchedIdxs:
                         name = self.data["names"][i]
                         counts[name] = counts.get(name, 0) + 1
@@ -53,7 +50,6 @@ class FacePerception:
                     # Determine the recognized face with the most matches
                     name = max(counts, key=counts.get)
 
-                    # If a new person is identified, update currentname
                     if currentname != name:
                         currentname = name
                 names.append(name)
