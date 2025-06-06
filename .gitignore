@@ -6,5 +6,8 @@ src/models/FaceDetection/results/
 image.jpg
 /sscv
 results.txt
+/configOther
 config
 /temp
+*.pyc
+*/__pycache__

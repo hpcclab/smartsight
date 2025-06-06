@@ -12,6 +12,7 @@ from nemoguardrails import LLMRails, RailsConfig
 from operations.commands import Commands
 from paddleocr import PaddleOCR
 from operations.commands import build_ocr, Commands
+from pathlib import Path
 
 class ActiveMode:
     def __init__(self):
@@ -22,18 +23,23 @@ class ActiveMode:
         self.engine.setProperty('voice', voices[1].id)
         self.engine.setProperty('volume', 1.0)
         self.engine.setProperty('rate', 150)
-
+        
         # Set up NeMo Guardrails
-        NVIDIA_API_KEY = "key1"
+        KeyFile = Path(__file__).parent.parent.parent / "configSensitive" / "apikeys.txt"
+        with open(KeyFile, "r") as file:
+            NVIDIA_API_KEY = file.readline().strip()
+            HIVE_API_KEY = file.readline().strip()
+
         nest_asyncio.apply()
         os.environ["NVIDIA_API_KEY"] = NVIDIA_API_KEY
         config = RailsConfig.from_path("./config")
         self.rails = LLMRails(config)
 
         # Initialize Hive AI client
+
         self.client = OpenAI(
             base_url="https://api.thehive.ai/api/v3/",
-            api_key="key2"
+            api_key=HIVE_API_KEY
         )
         # Initialize command handler for OCR commands
         ocr_engine = build_ocr()
