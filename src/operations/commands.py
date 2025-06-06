@@ -6,6 +6,26 @@ from paddleocr import PaddleOCR
 
 # OCR settings
 def build_ocr():
+    """
+    PP-OCR v5  • server detector  +  server recogniser (≈ 62 MB total).
+    """
+    return PaddleOCR(
+        lang="en",
+        gpu=False,
+        use_angle_cls=True,
+        use_doc_orientation_classify=True,
+        use_doc_unwarping=True,
+        use_textline_orientation=True,
+        text_detection_model_name="PP-OCRv5_server_det",
+        text_recognition_model_name="PP-OCRv5_server_rec",
+        show_log=False,
+        det_db_box_thresh=0.30,
+        det_db_unclip_ratio=2.0,
+        rec_image_shape="3,64,640",
+        rec_batch_num=8,
+    )
+'''
+def build_ocr():
     """PP-OCR v5  • mobile detector  +  mobile recogniser (tiny & fast)."""
     return PaddleOCR(
         lang="en",
@@ -19,6 +39,8 @@ def build_ocr():
         show_log=False,
         rec_batch_num=4,               
     )
+'''
+
 # Reading order helper
 def reading_order(boxes):
     centres = np.array([np.mean(b, axis=0) for b in boxes])               
@@ -60,5 +82,5 @@ class Commands:
             return []
 
         order = reading_order([b for b, _ in kept])
-        ordered_text = [kept[i][1].rstrip(".") for i in order]  # drop stray dots
+        ordered_text = [kept[i][1].replace(".", "") for i in order]  # drop stray dots
         return ordered_text

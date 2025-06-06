@@ -1,3 +1,3 @@
-import src.start.Server as Server
+import Server as Server
 
 Server.runServer()

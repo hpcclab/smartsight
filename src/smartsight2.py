@@ -51,6 +51,7 @@ engine.setProperty('voice', voices[1].id)
 engine.setProperty('volume', 1.0)
 engine.setProperty('rate', 150)
 
+
 # ----------------------------------------------------------------------------
 # Passive-mode persistence
 # ----------------------------------------------------------------------------
