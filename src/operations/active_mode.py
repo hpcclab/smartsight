@@ -98,7 +98,7 @@ class ActiveMode:
     def MLLMAnalyzeImage(self, UserRequest, UploadImage_path, output_file="results.txt"):
         # Check for 'command' mode: OCR text reading
         req_lower = UserRequest.lower()
-        if "command" in req_lower and ("read" in req_lower or "text" in req_lower):
+        if ("read" in req_lower or "text" in req_lower):
             lines = self.commands.read_text(UploadImage_path)
             if lines:
                 paragraph = ". ".join(lines)
