@@ -14,6 +14,7 @@ import pyaudio
 from operations.object_detection import ObjectDetection
 from operations.face_perception import FacePerception
 from operations.active_mode import ActiveMode
+from operations.text_detection import TextDetector
 
 # ----------------------------------------------------------------------------
 # Setup path
@@ -84,6 +85,7 @@ TimeTTSStart = 0
 # ----------------------------------------------------------------------------
 object_detector = ObjectDetection(model, minConf)
 face_perceiver  = FacePerception(detector, data)
+text_detector = TextDetector(iou_threshold=0.02)
 active_mode = ActiveMode()
 
 # ----------------------------------------------------------------------------
@@ -170,7 +172,23 @@ while True:
         if img is not None:
             img = cv.rotate(img, cv.ROTATE_90_COUNTERCLOCKWISE)
 
-            object_counts = object_detector.detect(img)
+            yolo_results = object_detector.detect(img)
+
+            object_counts = Counter()
+            text_announcements = {}
+
+            if yolo_results:
+                text_announcements = text_detector.analyze_frame(yolo_results, model.names, minConf)
+                
+                for box in yolo_results[0].boxes:
+                    class_id = int(box.cls[0])
+                    class_name = model.names[class_id]
+                    conf = box.conf
+                    print(f"Detected {class_name}. Confidence: {conf}")
+                    if conf >= minConf:
+                        if f"{class_name} with text" not in text_announcements:
+                            object_counts[class_name] += 1
+            object_counts.update(text_announcements)
             object_counts = face_perceiver.recognize(img, object_counts, passive)
             new_objects = {
                 obj: count

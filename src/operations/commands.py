@@ -54,8 +54,7 @@ class Commands:
     @staticmethod
     def _prep(img: np.ndarray) -> np.ndarray:
         """Light contrast boost"""
-        img = cv.resize(img, None, fx=1.6, fy=1.6,
-                        interpolation=cv.INTER_CUBIC)
+        img = cv.resize(img, None, fx=1.6, fy=1.6, interpolation=cv.INTER_CUBIC)
         lab = cv.cvtColor(img, cv.COLOR_BGR2LAB)
         l, a, b = cv.split(lab)
         l = cv.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8)).apply(l)
