@@ -11,10 +11,9 @@ from openai import OpenAI
 from nemoguardrails import LLMRails, RailsConfig
 from operations.commands import Commands
 from paddleocr import PaddleOCR
-from operations.commands import build_ocr, Commands
 
 class ActiveMode:
-    def __init__(self):
+    def __init__(self, ocr_engine):
         self.whisperModel = whisper.load_model("base")
         # Initialize text-to-speech engine
         self.engine = pyttsx3.init()
@@ -36,7 +35,6 @@ class ActiveMode:
             api_key="key2"
         )
         # Initialize command handler for OCR commands
-        ocr_engine = build_ocr()
         self.commands = Commands(ocr_engine, conf_threshold=0.65, min_length=2)
 
     def record_audio(self, audioObj):
@@ -97,7 +95,7 @@ class ActiveMode:
 
     def MLLMAnalyzeImage(self, UserRequest, UploadImage_path, output_file="results.txt"):
         # Check for 'command' mode: OCR text reading
-        req_lower = "read this text." #UserRequest.lower()
+        req_lower = UserRequest.lower()
         if ("read" in req_lower or "text" in req_lower):
             lines = self.commands.read_text(UploadImage_path)
             if lines:

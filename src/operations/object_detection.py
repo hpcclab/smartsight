@@ -7,10 +7,6 @@ class ObjectDetection:
         self.minConf = minConf
 
     def detect(self, img):
-        """
-        Runs YOLO inference and returns the raw results object.
-        The results contain all information, including bounding boxes, classes, and confidences.
-        """
         results = self.model(img)
         return results # Returns EVERYTHING, including locations
  

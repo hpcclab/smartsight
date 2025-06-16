@@ -19,7 +19,6 @@ class FacePerception:
                                                    flags=cv.CASCADE_SCALE_IMAGE)
             boxes = [(y, x + w, y + h, x) for (x, y, w, h) in rects]
             
-            # Compute the facial embeddings for each face bounding box
             encodings = face_recognition.face_encodings(rgb, boxes)
             names = []
             tolerance = 0.5
@@ -47,7 +46,6 @@ class FacePerception:
                         name = self.data["names"][i]
                         counts[name] = counts.get(name, 0) + 1
 
-                    # Determine the recognized face with the most matches
                     name = max(counts, key=counts.get)
 
                     if currentname != name:
@@ -55,6 +53,5 @@ class FacePerception:
                 names.append(name)
             for name in names:
                 if name != "Unknown":
-                    # Add recognized person to object_counts
                     object_counts[name] = 1
         return object_counts 
