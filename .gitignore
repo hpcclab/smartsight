@@ -8,3 +8,5 @@ image.jpg
 results.txt
 config
 /temp
+*.pyc
+*/__pycache__
