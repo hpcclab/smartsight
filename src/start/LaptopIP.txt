@@ -1,0 +1,4 @@
+169.254.106.174
+NonAdminFriendlyPlaceholder=
+C:\Users\jacob\Documents\UNT\SmartSight\Project6-5-2025\smartsight\src\start
+jacob
