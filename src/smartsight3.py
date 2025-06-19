@@ -48,7 +48,6 @@ RecordingTranscription = "Transcription not found."
 active_mode = None
 
 # --- FPS Benchmarking variables ---
-frame_count = 0
 start_time = time.time()
 
 
@@ -69,7 +68,7 @@ TimeTTSStart = 0
 
 # Input thread for active-mode trigger
 def check_input():
-    global passive, Recording, TimeKeyPressed, RecordingTranscription, active_frame
+    global passive, Recording, TimeKeyPressed, RecordingTranscription, active_frame, passive_frame_queue
     while True:
         if keyboard.is_pressed('space'):
             if not Recording:
@@ -80,12 +79,15 @@ def check_input():
                 # Try to get the latest processed frame for display
                 while True:
                     try:
-                        active_frame = None
                         active_frame = passive_frame_queue.get(timeout=0.01) # Small timeout
-                        if active_frame != None:
+                        if active_frame is not None:
                             break
-                    except:
-                        print("failed to get active frame. Trying again.")
+                    except queue.Empty:
+                        print("Passive queue empty. Trying to get active frame again.")
+                    except Exception as e:
+                        print(f"An unexpected error occurred in the check_input thread: {e}")
+                        quit()
+                    time.sleep(0.01)
                 print("Started recording...")
                 audio = pyaudio.PyAudio()
                 active_mode.record_audio(audio)
@@ -283,6 +285,7 @@ def active_passive_mode():
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
     # Facial recognition files
+    print("loading facial recognitions encodings")
     encodings_path = os.path.join(script_dir, 'models', 'FaceDetection', 'encodings.pickle')
     face_cascade_path = os.path.join(script_dir, 'models', 'FaceDetection', 'haarcascade_frontalface_default.xml')
 
@@ -297,13 +300,15 @@ def active_passive_mode():
     # --- Consolidated OCR Engine ---
     # Initialize the full OCR engine once to be shared across modules.
     print("Initializing OCR engine...")
-    ocr_engine = None # build_ocr()
+    ocr_engine = build_ocr()
     print("OCR engine initialized.")
     # -----------------------------
 
     # Detection parameters
     minConf = 0.73
     ObjectPerminanceFrames = 3
+
+    frame_count = 0 # for remembering recently seen objects.
 
     # ----------------------------------------------------------------------------
     # Initialize TTS engine (passive mode)
@@ -331,7 +336,6 @@ def active_passive_mode():
     PeoplePhonics = {"Doctor Mosen Amini Salehi":"Doctor Ahmeeni", "cup":"drink"}
     PeopleInfo = {"Doctor Mosen Amini Salehi":"Your professor from the University of North Texas"}
     EverDetected = {}
-
     # ----------------------------------------------------------------------------
     # Global Variables
     # ----------------------------------------------------------------------------
@@ -468,6 +472,11 @@ def run_server():
     connection = None # Initialize connection to None
 
     try:
+        # Start the active_passive_mode thread
+        main_thread = threading.Thread(target=active_passive_mode)
+        main_thread.daemon = True
+        main_thread.start()
+
         server_socket.bind((SERVER_IP, SERVER_PORT))
         server_socket.listen(1)
         print(f"Server listening on {SERVER_IP}:{SERVER_PORT}")
@@ -492,10 +501,6 @@ def run_server():
         input_thread.daemon = True
         input_thread.start()
         
-        # Start the input listener thread
-        main_thread = threading.Thread(target=active_passive_mode)
-        main_thread.daemon = True
-        main_thread.start()
 
         # # Start the tts thread
         # processor_t = threading.Thread(target=image_processing_thread)

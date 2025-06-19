@@ -60,8 +60,8 @@ class Commands:
         l = cv.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8)).apply(l)
         return cv.merge((l, a, b))
 
-    def read_text(self, img_path: str):
-        img = cv.imread(img_path)
+    def read_text(self, img: str):
+        # img = cv.imread(img_path)
         if img is None:
             return []
 

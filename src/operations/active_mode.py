@@ -7,6 +7,7 @@ import pyaudio
 import whisper
 import pyttsx3
 import nest_asyncio
+from cv2 import imwrite
 from openai import OpenAI
 from nemoguardrails import LLMRails, RailsConfig
 from operations.commands import Commands
@@ -97,11 +98,11 @@ class ActiveMode:
         completion = self.rails.generate(messages=[{"role": "user", "content": text}])
         return completion["content"]
 
-    def MLLMAnalyzeImage(self, UserRequest, UploadImage_path, output_file="results.txt"):
+    def MLLMAnalyzeImage(self, UserRequest, img, output_file="MLLM-Results.txt"):
         # Check for 'command' mode: OCR text reading
         req_lower = UserRequest.lower()
         if ("read" in req_lower or "text" in req_lower):
-            lines = self.commands.read_text(UploadImage_path)
+            lines = self.commands.read_text(img)
             if lines:
                 paragraph = ". ".join(lines)
                 print("Command read text:", paragraph)
@@ -113,22 +114,17 @@ class ActiveMode:
             self.engine.runAndWait()
             return
         with open(output_file, "a") as result_file:
-            image_name = UploadImage_path
             prompt = UserRequest + " Use the picture to appropriately answer the prompt. Ensure response is reasonable, brief, and accurate to the image. Do your best to answer regardless of grammar issues."
-            image_path = image_name
 
-            if not os.path.exists(image_path):
-                print(f"Image not found: {image_path}")
-                final_response = "No Response because image not found."
-            else:
-                print(f"Processing {image_name}...")
-                ai_response = self.get_completion(prompt, image_path)
-                final_response = self.nemo(ai_response)
+            print(f"Processing image...")
+            imgName = "MLLMImg.jpg"
+            imwrite(imgName, img)
+            ai_response = self.get_completion(prompt, imgName)
+            final_response = self.nemo(ai_response)
 
             self.engine.say(final_response)
             self.engine.runAndWait()
 
-            result_file.write(f"Image: {image_name}\n")
             result_file.write(f"Prompt: {prompt}\n")
             result_file.write(f"Original Response: {ai_response}\n")
             result_file.write(f"Nemo Guardrails: {final_response}\n\n")
