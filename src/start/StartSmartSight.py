@@ -155,6 +155,3 @@ if StartCapture:
     finally:
         # Close the connection
         ssh_client.close()
-
-
-Server.runServer()
