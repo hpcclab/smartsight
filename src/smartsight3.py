@@ -26,8 +26,10 @@ import queue
 
 
 # --- Configuration ---
+SERVER_IP6 = '::'
 SERVER_IP = '0.0.0.0'
-SERVER_PORT = 8000
+SERVER_PORT = 8001
+SERVER_PORT6 = 8000
 HEADER_SIZE = struct.calcsize('<L') # Size of the header (4 bytes for unsigned long)
 
 # --- Shared Resources (Queues and Events) ---
@@ -460,7 +462,10 @@ def active_passive_mode():
         time.sleep(0.01)
 
 
-def run_server():
+# def server6():
+#     blah="blah blah"
+
+def run_main_server():
     global passive_frame_queue
     """
     Main server function to set up socket, accept connection, and manage threads.
@@ -468,22 +473,28 @@ def run_server():
     """
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket6 = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+    server_socket6.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     connection = None # Initialize connection to None
-
+    receiver_t = None
+    processor_t = None
+    input_thread = None
     try:
         # Start the active_passive_mode thread
         main_thread = threading.Thread(target=active_passive_mode)
         main_thread.daemon = True
         main_thread.start()
 
-        server_socket.bind((SERVER_IP, SERVER_PORT))
-        server_socket.listen(1)
-        print(f"Server listening on {SERVER_IP}:{SERVER_PORT}")
+        # server_socket.bind((SERVER_IP, SERVER_PORT))
+        # server_socket.listen(1)
+        server_socket6.bind((SERVER_IP6, SERVER_PORT6))
+        server_socket6.listen(1)
+        print(f"Server listening on {SERVER_IP6}:{SERVER_PORT6}") # {SERVER_IP}:{SERVER_PORT},
         print("Waiting for client connection...")
 
         # Accept a connection from a client
-        connection, client_address = server_socket.accept()
+        connection, client_address = server_socket6.accept()
         print(f"Connected to client: {client_address}")
 
         # Start the receiver thread
@@ -550,8 +561,11 @@ def run_server():
         print("Closing connections and resources.")
         stop_event.set() # Ensure all threads are signaled to stop
         # Give threads a moment to finish before joining
-        receiver_t.join(timeout=1)
-        processor_t.join(timeout=1)
+        if receiver_t is not None:
+            receiver_t.join(timeout=1)
+        # input_thread
+        if processor_t is not None:
+            processor_t.join(timeout=1)
         if connection:
             connection.close()
         server_socket.close()
@@ -560,4 +574,4 @@ def run_server():
 
 
 if __name__ == '__main__':
-    run_server()
+    run_main_server()

@@ -31,11 +31,11 @@ def run_client():
     and streams them over the network as JPEGs.
     Each frame is sent with a preceding 4-byte length header.
     """
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
     print(f"Attempting to connect to {SERVER_IP}:{SERVER_PORT}...")
 
     try:
-        client_socket.connect((SERVER_IP, SERVER_PORT))
+        client_socket.connect((SERVER_IP, SERVER_PORT, 0, socket.if_nametoindex('usb0')))
         print(f"Successfully connected to {SERVER_IP}:{SERVER_PORT}")
 
         # Use Picamera2 in a 'with' statement for proper resource management
