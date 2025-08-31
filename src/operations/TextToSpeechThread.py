@@ -49,7 +49,6 @@ class TTSThread(threading.Thread):
                 print(f"{self.name} saying Priority {priority} Message: {message}")
                 self.engine.say(message)
                 self.engine.runAndWait()
-                time.sleep(0.05)
             except Exception as e:
                 print(f"[{self.name}] TTS error while speaking: {e}")
             finally:
