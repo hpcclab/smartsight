@@ -42,7 +42,8 @@ processed_frame_queue = queue.Queue(maxsize=1)
 passive_frame_queue = queue.Queue(maxsize=1)
 # Queue for the messages data that will be fed into TTS thread 
 msg_queue = queue.PriorityQueue()
-tts = None 
+tts_thread = TTSThread(msg_queue, name="SmartSight-TTS")
+tts_thread.start()
 # Event to signal all threads to stop
 stop_event = threading.Event()
 # Frame taken when active mode is activated and event signal
@@ -56,7 +57,7 @@ active_mode = None
 # Priority Definition
 priorityPassive = 1
 priorityActive = 0 
-
+UrgentPassive = -1
 
 # --- FPS Benchmarking variables ---
 start_time = time.time()
@@ -374,7 +375,6 @@ def active_passive_mode():
         # --------------------- Passive Mode ---------------------
         else:
             frame_start_time = time.time()
-            global priorityPassive
             try:
                 frame = passive_frame_queue.get(timeout=0.1)
                 print("Passive perception is active...")
@@ -437,7 +437,7 @@ def active_passive_mode():
                         )
     
                         print("New detections, speaking out:", speech_text)
-                        tts.add_message(speech_text, priority=priorityPassive)
+                        tts_thread.add_message(speech_text, priority=priorityPassive)
                     else:
                         print("No new objects detected.")
                     # --- FPS Calculation Logic ---
@@ -512,16 +512,11 @@ def run_main_server():
         input_thread.daemon = True
         input_thread.start()
         
-
-        tts = TTSThread(msg_queue,active_mode_event,"SmartSight")
-        tts.start()
-      
         print("Main display loop started. Press 'Q' to quit.")
         while not stop_event.is_set():
             try:
                 # Try to get the latest processed frame for display
                 frame_to_display = processed_frame_queue.get(timeout=0.01) # Small timeout
-
                 if frame_to_display is not None and frame_to_display.size > 0:
                     cv2.imshow('Live Processed Stream (Press Q to quit)', frame_to_display)
                     # passive_frame_queue.put_nowait(frame_to_display)

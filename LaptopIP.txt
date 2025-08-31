@@ -1,0 +1,4 @@
+fe80::477e:1768:7330:99d%usb0
+NonAdminFriendlyPlaceholder=
+C:\Users\Crack\OneDrive\Documents\GitHub\smartsight\src\start
+Crack
