@@ -16,6 +16,8 @@ from operations.active_mode import ActiveMode
 from operations.text_detection import TextDetector
 from operations.TextToSpeechThread import TTSThread
 from operations.commands import build_ocr 
+from operations.TestingThread import TestingThread
+
 # import operations.optical_flow
 
 import socket
@@ -41,9 +43,10 @@ processed_frame_queue = queue.Queue(maxsize=1)
 # Queue for the passive mode to use.
 passive_frame_queue = queue.Queue(maxsize=1)
 # Queue for the messages data that will be fed into TTS thread 
-msg_queue = queue.PriorityQueue()
-tts_thread = TTSThread(msg_queue, name="SmartSight-TTS")
-tts_thread.start()
+
+tts_thread = TTSThread(name="SmartSight-TTS")
+testingThread = TestingThread(callback=tts_thread.add_message)
+
 # Event to signal all threads to stop
 stop_event = threading.Event()
 # Frame taken when active mode is activated and event signal
@@ -511,9 +514,17 @@ def run_main_server():
         input_thread = threading.Thread(target=check_input)
         input_thread.daemon = True
         input_thread.start()
-        
+
+        # start tts_thread
+        tts_thread.start()
+        flagTesting = False 
+        testingThread.start()
+        #start Testing Thread
+        # while flagTesting != False:
+        #     testingThread.start()
         print("Main display loop started. Press 'Q' to quit.")
         while not stop_event.is_set():
+
             try:
                 # Try to get the latest processed frame for display
                 frame_to_display = processed_frame_queue.get(timeout=0.01) # Small timeout

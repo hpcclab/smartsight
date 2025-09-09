@@ -1,4 +1,4 @@
-169.254.106.174
+fe80::3a59:a329:b2bf:c7a5%usb0
 NonAdminFriendlyPlaceholder=
-C:\Users\jacob\Documents\UNT\SmartSight\Project6-5-2025\smartsight\src\start
-jacob
+C:\Users\Crack\OneDrive\Documents\GitHub\smartsight\src\start
+Crack

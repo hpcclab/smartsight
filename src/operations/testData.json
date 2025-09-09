@@ -1,0 +1,42 @@
+[
+{
+"priority": 0,
+"text": "I am ready for your command."
+},
+{
+"priority": 0,
+"text": "Search complete. Found three possible routes."
+},
+{
+"priority": -10,
+"text": "WARNING! Unstable ground detected directly in front of you!"
+},
+{
+"priority": 0,
+"text": "How may I help you?"
+},
+{
+"priority": -10,
+"text": "DANGER! Obstacle detected in your path!"
+},
+{
+"priority": 0,
+"text": "Navigating now. Please follow the path."
+},
+{
+"priority": -10,
+"text": "WARNING! Vehicle approaching from behind!"
+},
+{
+"priority": 0,
+"text": "Please hold while I connect to the server."
+},
+{
+"priority": -10,
+"text": "Emergency! Fire alarm detected!"
+},
+{
+"priority": 0,
+"text": "Okay, I've added that to your notes."
+}
+]

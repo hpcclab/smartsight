@@ -2,7 +2,7 @@ import threading
 import queue
 import pyttsx3
 import time
-
+from operations.TestingThread import TestingThread
 # Priority definitions
 UrgentPassive = -10
 ActiveThread = 0
@@ -54,34 +54,33 @@ class TTSThread(threading.Thread):
             finally:
                 self.message_queue.task_done()
 
-    def add_message(self, message: str, priority=PassiveThread):
+    def add_message(self, message, priority=PassiveThread):
         self.message_queue.put((priority, message))
 
     def stop(self):
         self.stop_running.set()
+        print(f"{self.name} has stopped succesfully!")
         try:
             if self.engine is not None:
                 self.engine.stop()
         except Exception:
             pass
-# if __name__ == "__main__":
-#     print("--- TTS Thread Test Started ---")
-
-#     # 1. Create a shared priority queue and the active mode event
-#     tts_queue = queue.PriorityQueue()
-
-#     # 2. Instantiate and start the TTS thread
-#     tts_thread = TTSThread(tts_queue, name="SmartSight-TTS")
-#     tts_thread.start()
-
-#     tts_thread.add_message("Keyboard", PassiveThread)
-#     tts_thread.add_message("Mouse", ActiveThread)
-#     tts_thread.add_message("Person 1", UrgentPassive)
-#     # keep main thread alive
-#     try:
-#         while True:
-#             time.sleep(1)
-#     except KeyboardInterrupt:
-#         tts_thread.stop()
-#         tts_thread.join()
-#         print("TTS stopped.")
+if __name__ == "__main__":
+    print("--- TTS Thread Test Started ---")
+    # 2. Instantiate and start the TTS thread
+    tts_thread = TTSThread(name="SmartSight-TTS")
+    tts_thread.start()
+    Testing = TestingThread(callback=tts_thread.add_message)
+    Testing.start()
+    tts_thread.add_message("Keyboard", PassiveThread)
+    tts_thread.add_message("Mouse", ActiveThread)
+    tts_thread.add_message("Person 1", UrgentPassive)
+    # keep main thread alive
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        tts_thread.stop()
+        Testing.stop()
+        tts_thread.join()
+        Testing.join()
