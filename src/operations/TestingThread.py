@@ -18,15 +18,8 @@ class TestingThread(threading.Thread):
             with open(data_file,"r") as file:
                 data = json.load(file)
             for item in data:
-                if (item['priority'] == 10):
                 #Adding messages and priority into the message queue priority (Urgent Passive) 
-                    self.callback(item['text'], item['priority'])
-                    time.sleep(2)
-                else:
-                    self.callback(item['text'],item['priority'])
-                    time.sleep(2)
-                time.sleep(1)
-                
+                self.callback(item['text'], item['priority'])
         except FileNotFoundError:
             print(f"File Not Found")
         except Exception as e:

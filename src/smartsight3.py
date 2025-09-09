@@ -14,7 +14,10 @@ from operations.object_detection import ObjectDetection
 from operations.face_perception import FacePerception
 from operations.active_mode import ActiveMode
 from operations.text_detection import TextDetector
+from operations.TextToSpeechThread import TTSThread
 from operations.commands import build_ocr 
+from operations.TestingThread import TestingThread
+
 # import operations.optical_flow
 
 import socket
@@ -39,18 +42,38 @@ raw_frame_queue = queue.Queue(maxsize=1)
 processed_frame_queue = queue.Queue(maxsize=1)
 # Queue for the passive mode to use.
 passive_frame_queue = queue.Queue(maxsize=1)
+
+
+# TTS and Testing Thread
+tts_thread = TTSThread(name="SmartSight-TTS")
+testingThread = TestingThread(callback=tts_thread.add_message)
+tts_thread.start()
+
+USE_TESTING_THREAD = True 
+if USE_TESTING_THREAD:
+    testingThread.start()
+else:
+    testingThread = None 
+
+
 # Event to signal all threads to stop
 stop_event = threading.Event()
-# Frame taken when active mode is activated
+# Frame taken when active mode is activated and event signal
+active_mode_event = threading.Event()
 active_frame = None
 passive = True
 Recording = False
 RecordingTranscription = "Transcription not found."
 # Object holding some active-mode functions and models.
 active_mode = None
+# Priority Definition
+priorityPassive = 1
+priorityActive = 0 
+UrgentPassive = -1
 
 # --- FPS Benchmarking variables ---
 start_time = time.time()
+
 
 
 
@@ -311,17 +334,6 @@ def active_passive_mode():
     ObjectPerminanceFrames = 3
 
     frame_count = 0 # for remembering recently seen objects.
-
-    # ----------------------------------------------------------------------------
-    # Initialize TTS engine (passive mode)
-    # ----------------------------------------------------------------------------
-    engine = pyttsx3.init()
-    voices = engine.getProperty('voices')
-    engine.setProperty('voice', voices[1].id)
-    engine.setProperty('volume', 1.0)
-    engine.setProperty('rate', 150)
-
-
     # ----------------------------------------------------------------------------
     # Passive-mode persistence
     # ----------------------------------------------------------------------------
@@ -342,7 +354,7 @@ def active_passive_mode():
     # Global Variables
     # ----------------------------------------------------------------------------
 
-    global active_mode, active_frame, RecordingTranscription, Recording, passive
+    global active_mode, active_frame, RecordingTranscription, Recording, passive, tts
     # ----------------------------------------------------------------------------
     # Instantiate modular operation classes (active mode, passive mode, etc)
     # ----------------------------------------------------------------------------
@@ -361,7 +373,7 @@ def active_passive_mode():
             UserRequest = RecordingTranscription
             active_mode.MLLMAnalyzeImage(UserRequest, active_frame)
             passive = True 
-
+            active_mode_event.clear()
             time.sleep(0.2)
             while not passive:
                 print("paused")
@@ -435,9 +447,9 @@ def active_passive_mode():
                         speech_text = " " + ", ".join(
                             [f"{count} {o}" if count > 1 else o for o, count in new_objects.items()]
                         )
+    
                         print("New detections, speaking out:", speech_text)
-                        engine.say(speech_text)
-                        engine.runAndWait()
+                        tts_thread.add_message(speech_text, priority=priorityPassive)
                     else:
                         print("No new objects detected.")
                     # --- FPS Calculation Logic ---
@@ -466,7 +478,7 @@ def active_passive_mode():
 #     blah="blah blah"
 
 def run_main_server():
-    global passive_frame_queue
+    global passive_frame_queue, tts_thread, testingThread 
     """
     Main server function to set up socket, accept connection, and manage threads.
     It handles the display of processed frames.
@@ -511,24 +523,12 @@ def run_main_server():
         input_thread = threading.Thread(target=check_input)
         input_thread.daemon = True
         input_thread.start()
-        
-
-        # # Start the tts thread
-        # processor_t = threading.Thread(target=image_processing_thread)
-        # processor_t.daemon = True
-        # processor_t.start()
-        
-        # # Start the user input thread
-        # processor_t = threading.Thread(target=image_processing_thread)
-        # processor_t.daemon = True
-        # processor_t.start()
-
         print("Main display loop started. Press 'Q' to quit.")
         while not stop_event.is_set():
+
             try:
                 # Try to get the latest processed frame for display
                 frame_to_display = processed_frame_queue.get(timeout=0.01) # Small timeout
-
                 if frame_to_display is not None and frame_to_display.size > 0:
                     cv2.imshow('Live Processed Stream (Press Q to quit)', frame_to_display)
                     # passive_frame_queue.put_nowait(frame_to_display)
@@ -561,6 +561,9 @@ def run_main_server():
         print("Closing connections and resources.")
         stop_event.set() # Ensure all threads are signaled to stop
         # Give threads a moment to finish before joining
+        if tts is not None:
+            tts.stop()
+            tts.join(timeout=1)
         if receiver_t is not None:
             receiver_t.join(timeout=1)
         # input_thread
@@ -575,3 +578,4 @@ def run_main_server():
 
 if __name__ == '__main__':
     run_main_server()
+
