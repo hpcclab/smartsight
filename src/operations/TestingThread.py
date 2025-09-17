@@ -2,6 +2,7 @@ import threading
 import json
 import queue 
 import time
+import os
 # from operations.TextToSpeechThread import TTSThread
 
 class TestingThread(threading.Thread):
@@ -13,7 +14,7 @@ class TestingThread(threading.Thread):
 
     def run(self):
         #Json Data source 
-        data_file = r'src\operations\testData.json'
+        data_file = r"src\operations\TestMSG.json"
         try:
             with open(data_file,"r") as file:
                 data = json.load(file)
