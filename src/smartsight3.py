@@ -49,11 +49,11 @@ tts_thread = TTSThread(name="SmartSight-TTS")
 testingThread = TestingThread(callback=tts_thread.add_message)
 tts_thread.start()
 
-USE_TESTING_THREAD = True 
-if USE_TESTING_THREAD:
-    testingThread.start()
-else:
-    testingThread = None 
+# USE_TESTING_THREAD = True 
+# if USE_TESTING_THREAD:
+#     testingThread.start()
+# else:
+#     testingThread = None 
 
 
 # Event to signal all threads to stop

@@ -2,7 +2,10 @@ import threading
 import queue
 import pyttsx3
 import time
-from operations.TestingThread import TestingThread
+import sys
+import os
+import keyboard
+# from operations.TestingThread import TestingThread
 # Priority definitions
 UrgentPassive = -10
 ActiveThread = 0
@@ -18,6 +21,7 @@ class TTSThread(threading.Thread):
         self.message_queue = queue.PriorityQueue()
         self.stop_running = threading.Event()
         self.engine = None 
+        self.current_priority = PassiveThread + 1
         print(f"[{self.name}] Initialized.")
 
     def initialize_engine(self):
@@ -55,6 +59,11 @@ class TTSThread(threading.Thread):
                 self.message_queue.task_done()
 
     def add_message(self, message, priority=PassiveThread):
+        while self.engine and self.engine.isBusy():
+            #if new message has higher current priority then we interupted the engine by initializing stop function
+            if priority > self.current_priority:
+                self.engine.stop()
+                print(f"{self.name} interuptted due to a higher priority event")
         self.message_queue.put((priority, message))
 
     def stop(self):
@@ -70,17 +79,44 @@ if __name__ == "__main__":
     # 2. Instantiate and start the TTS thread
     tts_thread = TTSThread(name="SmartSight-TTS")
     tts_thread.start()
-    Testing = TestingThread(callback=tts_thread.add_message)
-    Testing.start()
-    tts_thread.add_message("Keyboard", PassiveThread)
-    tts_thread.add_message("Mouse", ActiveThread)
-    tts_thread.add_message("Person 1", UrgentPassive)
-    # keep main thread alive
+    # Testing = TestingThread(callback=tts_thread.add_message)
+     # Passive and active messages
+    passive = [
+        "The ambient temperature is seventy-two degrees Fahrenheit.",
+        "You have a new message from the lab assistant.",
+        "Your current location is the main laboratory.",        
+        "The next scheduled task is to check the power supply.",
+        "It has been one hour since your last break.",
+        "Battery level is at eighty-five percent.",
+        "Wi-Fi connection is stable.",
+        "You are currently moving at a walking pace.",
+        "A new data file has been saved.",
+        "The nearest fire exit is to your left."
+    ]
+    print("Press 'p' to start TestingThread (higher-priority messages).")
+    print("Passive messages will keep looping until interrupted.")
+
     try:
         while True:
-            time.sleep(1)
+            # Continuously feed passive messages
+            for msg in passive:
+                tts_thread.add_message(msg, priority=PassiveThread)
+                time.sleep(1.5)
+
+                # # Check for user input while passive loop runs
+                # if keyboard.is_pressed("p"):
+                #     if not Testing.is_alive():
+                #         print("[MAIN] Starting TestingThread → injecting HIGH priority messages...")
+                #         Testing.start()
+                #     else:
+                #         print("[MAIN] TestingThread already running.")
+
+            time.sleep(0.1)
+
     except KeyboardInterrupt:
+        print("[MAIN] Exiting...")
         tts_thread.stop()
-        Testing.stop()
+        # if Testing.is_alive():
+        #     Testing.stop()
+        #     Testing.join()
         tts_thread.join()
-        Testing.join()
