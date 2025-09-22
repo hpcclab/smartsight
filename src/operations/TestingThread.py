@@ -28,12 +28,16 @@ class TestingThread(threading.Thread):
         self.stop_running.set()
         print(f"{self.name} has stopped successfully")
 
-# class Receiver:
-#     def handle_message(self, priority, text):
-#         print(f"Got message [{priority}]: {text}")
+class Receiver:
+    def handle_message(self, priority, text):
+        print(f"Got message [{priority}]: {text}")
 
+def main():
+    receiver = Receiver()
+    thread = TestingThread(callback=receiver.handle_message)
+    thread.start()
+    thread.join()
 
-# receiver = Receiver()
-# thread = TestingThread(callback=receiver.handle_message)
-# thread.start()
-# thread.join()
+if __name__ == "__main__":
+    main()
+    

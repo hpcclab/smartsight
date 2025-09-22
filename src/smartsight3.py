@@ -49,7 +49,7 @@ tts_thread = TTSThread(name="SmartSight-TTS")
 testingThread = TestingThread(callback=tts_thread.add_message)
 tts_thread.start()
 
-USE_TESTING_THREAD = True 
+USE_TESTING_THREAD = False  
 if USE_TESTING_THREAD:
     testingThread.start()
 else:
@@ -66,10 +66,6 @@ Recording = False
 RecordingTranscription = "Transcription not found."
 # Object holding some active-mode functions and models.
 active_mode = None
-# Priority Definition
-priorityPassive = 1
-priorityActive = 0 
-UrgentPassive = -1
 
 # --- FPS Benchmarking variables ---
 start_time = time.time()
@@ -371,6 +367,8 @@ def active_passive_mode():
             print("Finished getting Active transcription")
 
             UserRequest = RecordingTranscription
+            # Add active mode response with higher priority
+            tts_thread.add_message(f"Processing your request: {UserRequest}", ActiveThread)
             active_mode.MLLMAnalyzeImage(UserRequest, active_frame)
             passive = True 
             active_mode_event.clear()
@@ -449,7 +447,7 @@ def active_passive_mode():
                         )
     
                         print("New detections, speaking out:", speech_text)
-                        tts_thread.add_message(speech_text, priority=priorityPassive)
+                        tts_thread.add_message(speech_text, priority=PassiveThread)
                     else:
                         print("No new objects detected.")
                     # --- FPS Calculation Logic ---
@@ -478,7 +476,7 @@ def active_passive_mode():
 #     blah="blah blah"
 
 def run_main_server():
-    global passive_frame_queue, tts_thread, testingThread 
+    global passive_frame_queue, tts_thread 
     """
     Main server function to set up socket, accept connection, and manage threads.
     It handles the display of processed frames.
@@ -561,9 +559,9 @@ def run_main_server():
         print("Closing connections and resources.")
         stop_event.set() # Ensure all threads are signaled to stop
         # Give threads a moment to finish before joining
-        if tts is not None:
-            tts.stop()
-            tts.join(timeout=1)
+        if tts_thread is not None:
+            tts_thread.stop()
+            tts_thread.join(timeout=1)
         if receiver_t is not None:
             receiver_t.join(timeout=1)
         # input_thread
