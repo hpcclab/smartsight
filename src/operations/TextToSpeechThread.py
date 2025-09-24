@@ -21,16 +21,32 @@ class TTSThread(threading.Thread):
         self.current_priority = None
         self.interrupt_event = threading.Event()
         self.speaking_lock = threading.Lock()
+        self.is_speaking = False
         print(f"[{self.name}] Initialized.")
 
     def initialize_engine(self):
         try:
             self.engine = pyttsx3.init()
             voices = self.engine.getProperty('voices')
-            self.engine.setProperty('voice', voices[1].id)
+            if len(voices) > 1:
+                self.engine.setProperty('voice', voices[1].id)
             self.engine.setProperty('volume', 1.0)
             self.engine.setProperty('rate', 200)
-            print("Engine Initialized")
+            
+            # Set up engine callbacks for interruption handling
+            def on_start(name):
+                with self.speaking_lock:
+                    self.is_speaking = True
+                    
+            def on_end(name, completed):
+                with self.speaking_lock:
+                    self.is_speaking = False
+                    self.current_priority = None
+                    
+            self.engine.connect('started-utterance', on_start)
+            self.engine.connect('finished-utterance', on_end)
+            
+            print(f"[{self.name}] Engine Initialized")
 
         except Exception as e:
             print(f"[{self.name}] Failed to initialize engine: {e}")
@@ -40,6 +56,11 @@ class TTSThread(threading.Thread):
         # Ensure engine is ready
         if self.engine is None:
             self.initialize_engine()
+            
+        if self.engine is None:
+            print(f"[{self.name}] Cannot run without engine")
+            return
+            
         while not self.stop_running.is_set():
             try:
                 priority, message = self.message_queue.get(block=True, timeout=0.1)
@@ -51,97 +72,84 @@ class TTSThread(threading.Thread):
             
             # Check if we should interrupt current speech
             if self.current_priority is not None and priority < self.current_priority:
-                #interrupting current speech for higher priority message
-                self.interrupt_event.set()
-                # Wait a moment for current speech to stop
-                time.sleep(0.1)
+                print(f"[{self.name}] Interrupting current speech (priority {self.current_priority}) for higher priority message (priority {priority})")
+                self._interrupt_speech()
             
-            # Speak the message with interruption support
-            self._speak_with_interruption(priority, message)
-            self.message_queue.task_done()
-
-    def _speak_with_interruption(self, priority, message):
-        """Speak a message with support for interruption by higher priority messages."""
-        with self.speaking_lock:
-            self.current_priority = priority
+            # Set current priority and speak the message
+            with self.speaking_lock:
+                self.current_priority = priority
+                
+            print(f"[{self.name}] Speaking (Priority {priority}): {message[:50]}{'...' if len(message) > 50 else ''}")
+            
+            # Clear interrupt event before speaking
             self.interrupt_event.clear()
             
+            # Speak the message with interruption support
             try:
-                print(f"{self.name} saying Priority {priority} Message: {message}")
                 self.engine.say(message)
                 
-                # Use a custom runAndWait that can be interrupted
-                self._run_and_wait_with_interruption()
+                # Start a separate thread to monitor for interruptions during speech
+                interrupt_monitor = threading.Thread(
+                    target=self._monitor_interruption, 
+                    daemon=True
+                )
+                interrupt_monitor.start()
+                
+                # This will block until speech is complete or interrupted
+                self.engine.runAndWait()
                 
             except Exception as e:
-                print(f"[{self.name}] TTS error while speaking: {e}")
+                print(f"[{self.name}] Speech error: {e}")
+                
             finally:
-                self.current_priority = None
+                with self.speaking_lock:
+                    self.is_speaking = False
+                    self.current_priority = None
+                    
+            self.message_queue.task_done()
 
-    def _run_and_wait_with_interruption(self):
-        """Custom runAndWait that can be interrupted by higher priority messages."""
-        if self.engine is None:
-            return
+    def _monitor_interruption(self):
+        """Monitor for interruption signals during speech"""
+        while self.is_speaking and not self.interrupt_event.is_set():
+            time.sleep(0.05)  # Check every 50ms
             
-        # Start the speech
-        self.engine.runAndWait()
-        
-        # Check for interruption during speech
-        while self.engine.isBusy():
-            if self.interrupt_event.is_set():
-                print(f"[{self.name}] Speech interrupted by higher priority message")
-                self.engine.stop()
-                break
-            time.sleep(0.01)  # Small delay to prevent busy waiting
+        if self.interrupt_event.is_set() and self.is_speaking:
+            print(f"[{self.name}] Interruption detected during speech")
+            self._interrupt_speech()
+
+    def _interrupt_speech(self):
+        """Actually interrupt the current speech"""
+        if self.engine is not None:
+            try:
+                self.engine.stop()  # Stop current speech
+                print(f"[{self.name}] Speech interrupted")
+            except Exception as e:
+                print(f"[{self.name}] Error stopping engine: {e}")
 
     def add_message(self, message, priority=PassiveThread):
         """Add a message to the TTS queue with optional priority."""
         self.message_queue.put((priority, message))
+        print(f"[{self.name}] Message queued (Priority {priority}): {message[:30]}{'...' if len(message) > 30 else ''}")
         
         # If this is a higher priority message and we're currently speaking,
         # signal an interruption
-        if (self.current_priority is not None and 
-            priority < self.current_priority and 
-            self.engine is not None and 
-            self.engine.isBusy()):
-            print(f"[{self.name}] Higher priority message queued, will interrupt current speech")
-            self.interrupt_event.set()
+        with self.speaking_lock:
+            if (self.current_priority is not None and 
+                priority < self.current_priority and 
+                self.is_speaking):
+                print(f"[{self.name}] Higher priority message queued, signaling interruption")
+                self.interrupt_event.set()
 
     def stop(self):
         """Stop the TTS thread and any current speech."""
+        print(f"[{self.name}] Stopping...")
         self.stop_running.set()
         self.interrupt_event.set()  # Signal to stop any current speech
-        print(f"{self.name} has stopped successfully!")
+        
         try:
             if self.engine is not None:
                 self.engine.stop()
-        except Exception:
-            pass
-if __name__ == "__main__":
-    print("--- TTS Thread Test Started ---")
-    
-    # Create and start the TTS thread
-    tts_thread = TTSThread(name="SmartSight-TTS")
-    tts_thread.start()
-    
-    # Test interruption mechanism
-    print("Adding messages to test interruption...")
-    tts_thread.add_message("This is a long passive message that should be interrupted", PassiveThread)
-    time.sleep(1)
-    # Wait a moment for speech to start, then interrupt with higher priority
-    tts_thread.add_message("URGENT: This urgent message should interrupt!", UrgentPassive)
-    
-    # Add more messages to test priority ordering
-    time.sleep(1)
-    tts_thread.add_message("Active mode message", ActiveThread)
-    tts_thread.add_message("Another passive message", PassiveThread)
-    
-    # Keep main thread alive
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("Stopping TTS thread...")
-        tts_thread.stop()
-        tts_thread.join()
-        print("TTS thread stopped.")
+        except Exception as e:
+            print(f"[{self.name}] Error stopping engine: {e}")
+        
+        print(f"[{self.name}] Stopped successfully!")

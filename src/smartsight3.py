@@ -14,7 +14,7 @@ from operations.object_detection import ObjectDetection
 from operations.face_perception import FacePerception
 from operations.active_mode import ActiveMode
 from operations.text_detection import TextDetector
-from operations.TextToSpeechThread import TTSThread
+from operations.TextToSpeechThread import TTSThread, PassiveThread, ActiveThread, UrgentPassive
 from operations.commands import build_ocr 
 from operations.TestingThread import TestingThread
 
@@ -49,7 +49,7 @@ tts_thread = TTSThread(name="SmartSight-TTS")
 testingThread = TestingThread(callback=tts_thread.add_message)
 tts_thread.start()
 
-USE_TESTING_THREAD = False  
+USE_TESTING_THREAD = True  
 if USE_TESTING_THREAD:
     testingThread.start()
 else:
@@ -523,7 +523,6 @@ def run_main_server():
         input_thread.start()
         print("Main display loop started. Press 'Q' to quit.")
         while not stop_event.is_set():
-
             try:
                 # Try to get the latest processed frame for display
                 frame_to_display = processed_frame_queue.get(timeout=0.01) # Small timeout
