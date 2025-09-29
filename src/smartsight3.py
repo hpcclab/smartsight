@@ -368,7 +368,7 @@ def active_passive_mode():
 
             UserRequest = RecordingTranscription
             # Add active mode response with higher priority
-            tts_thread.add_message(f"Processing your request: {UserRequest}", ActiveThread)
+            tts_thread.add_message(f"Processing your request: {UserRequest}", priority="active")
             active_mode.MLLMAnalyzeImage(UserRequest, active_frame)
             passive = True 
             active_mode_event.clear()
@@ -447,7 +447,7 @@ def active_passive_mode():
                         )
     
                         print("New detections, speaking out:", speech_text)
-                        tts_thread.add_message(speech_text, priority=PassiveThread)
+                        tts_thread.add_message(speech_text, priority="passive")
                     else:
                         print("No new objects detected.")
                     # --- FPS Calculation Logic ---
