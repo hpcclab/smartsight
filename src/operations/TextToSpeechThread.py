@@ -5,22 +5,14 @@ import time
 
 
 class TTSThread(threading.Thread):
-    """
-    Non-blocking TTS thread using pyttsx3 event loop.
-    Supports 3 priority queues: urgent, active, passive.
-    Automatically interrupts lower-priority speech when higher-priority arrives.
-    """
 
     def __init__(self, name="SmartSight-TTS", daemon=True):
         super().__init__(name=name, daemon=daemon)
 
-        # Separate queues by priority level
-        self.urgent_queue = queue.Queue()
-        self.active_queue = queue.Queue()
-        self.passive_queue = queue.Queue()
+        # Single priority queue
+        self.queue = queue.PriorityQueue()
 
         self.stop_running = threading.Event()
-        self.interrupt_event = threading.Event()
         self.speaking_lock = threading.Lock()
 
         self.engine = None
@@ -49,7 +41,7 @@ class TTSThread(threading.Thread):
 
         # Main loop
         while not self.stop_running.is_set():
-            message, priority = self.get_next_message()
+            priority, message = self.get_next_message()
 
             if message is None:
                 time.sleep(0.05)  # idle briefly
@@ -57,17 +49,19 @@ class TTSThread(threading.Thread):
 
             # If a higher priority arrives mid-speech, interrupt
             if self.current_priority is not None:
-                if self.priority_value(priority) < self.priority_value(self.current_priority):
-                    print(f"[{self.name}] Interrupting {self.current_priority} for {priority}")
+                if priority < self.priority_value(self.current_priority):
+                    print("Run Log")
+                    print(f"COMPARING: CURRENT PRIORITY {self.priority_value(self.current_priority)} AND NEW PRIORITY {priority}\n")
                     self.engine.stop()
 
             # Speak
             try:
                 with self.speaking_lock:
                     self.is_speaking = True
-                    self.current_priority = priority
+                    self.current_priority = self.priority_name(priority)  # Convert back to name for logs
+                    print(f"CURRENT PRIORITY: {self.current_priority}\n")
 
-                print(f"[{self.name}] Speaking ({priority}): {message[:40]}...")
+                print(f"[{self.name}] Speaking ({self.current_priority}): {message[:40]}...")
                 self.engine.say(message)
                 self.engine.runAndWait()
 
@@ -80,35 +74,26 @@ class TTSThread(threading.Thread):
                     self.current_priority = None
 
     def get_next_message(self):
-        """Check queues in priority order: urgent > active > passive."""
+        """Get next message from priority queue (lowest number = highest priority)."""
         try:
-            if not self.urgent_queue.empty():
-                return self.urgent_queue.get_nowait(), "urgent"
-            elif not self.active_queue.empty():
-                return self.active_queue.get_nowait(), "active"
-            elif not self.passive_queue.empty():
-                return self.passive_queue.get_nowait(), "passive"
-            else:
-                return None, None
+            priority, message = self.queue.get_nowait()
+            return priority, message
         except queue.Empty:
             return None, None
 
     def add_message(self, message, priority="passive"):
-        """Add message to a specific queue."""
-        if priority == "urgent":
-            self.urgent_queue.put(message)
-        elif priority == "active":
-            self.active_queue.put(message)
-        else:
-            self.passive_queue.put(message)
-
+        """Add message to the single priority queue."""
+        priority_val = self.priority_value(priority)
+        self.queue.put((priority_val, message))
         print(f"[{self.name}] Queued ({priority}): {message[:40]}...")
 
         # Interrupt if necessary
         with self.speaking_lock:
             if self.current_priority is not None:
-                if self.priority_value(priority) < self.priority_value(self.current_priority):
-                    print(f"[{self.name}] Higher priority ({priority}) queued, interrupting...")
+                current_val = self.priority_value(self.current_priority)
+                if priority_val < current_val:
+                    print("Add Message Log")
+                    print(f"COMPARING: CURRENT PRIORITY {self.current_priority} AND NEW PRIORITY {priority}\n")
                     self.engine.stop()
 
     @staticmethod
@@ -121,6 +106,16 @@ class TTSThread(threading.Thread):
         else:
             return 2
 
+    @staticmethod
+    def priority_name(value):
+        """Convert priority value back to name."""
+        if value == 0:
+            return "urgent"
+        elif value == 1:
+            return "active"
+        else:
+            return "passive"
+
     def stop(self):
         """Stop the TTS thread and engine."""
         print(f"[{self.name}] Stopping...")
@@ -131,21 +126,3 @@ class TTSThread(threading.Thread):
         except Exception as e:
             print(f"[{self.name}] Error stopping engine: {e}")
         print(f"[{self.name}] Stopped successfully!")
-
-
-# ------------------------
-# Example usage
-# ------------------------
-if __name__ == "__main__":
-    tts = TTSThread()
-    tts.start()
-
-    # Queue some messages
-    tts.add_message("This is a passive message. It will run last.", priority="passive")
-    tts.add_message("This is an active message. It should interrupt passive.", priority="active")
-    tts.add_message("URGENT! This interrupts everything immediately.", priority="urgent")
-
-    # Let it run for a bit
-    time.sleep(10)
-
-    tts.stop()
