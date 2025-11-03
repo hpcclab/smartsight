@@ -46,14 +46,10 @@ passive_frame_queue = queue.Queue(maxsize=1)
 
 # TTS and Testing Thread
 tts_thread = TTSThread(name="SmartSight-TTS")
-testingThread = TestingThread(callback=tts_thread.add_message)
 tts_thread.start()
 
-USE_TESTING_THREAD = True  
-if USE_TESTING_THREAD:
-    testingThread.start()
-else:
-    testingThread = None 
+testingThread = None
+USE_TESTING_THREAD = False
 
 
 # Event to signal all threads to stop
@@ -83,14 +79,28 @@ TimeMLLMStart = 0
 TimeNemoStart = 0
 TimeTTSStart = 0
 
+
 # ----------------------------------------------------------------------------
 # Threads
 # ----------------------------------------------------------------------------
 
 # Input thread for active-mode trigger
+def testing_thread():
+    global testingThread, USE_TESTING_THREAD, tts_thread
+    if testingThread is not None or not testingThread.is_alive():
+        testingThread = TestingThread(callback=tts_thread.add_message)
+        testingThread.start()
+        USE_TESTING_THREAD = True
+        print("Testing thread started")
+    else:
+        print("Testing thread already running")
+
 def check_input():
     global passive, Recording, TimeKeyPressed, RecordingTranscription, active_frame, passive_frame_queue
     while True:
+        if keyboard.is_pressed('t'):
+            testing_thread()
+            time.sleep(0.3)
         if keyboard.is_pressed('space'):
             if not Recording:
                 TimeKeyPressed = time.time()
