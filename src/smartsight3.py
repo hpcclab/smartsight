@@ -14,7 +14,7 @@ from operations.object_detection import ObjectDetection
 from operations.face_perception import FacePerception
 from operations.active_mode import ActiveMode
 from operations.text_detection import TextDetector
-from operations.TextToSpeechThread import TTSThread, PassiveThread, ActiveThread, UrgentPassive
+from operations.TextToSpeechThread import TTSThread
 from operations.commands import build_ocr 
 from operations.TestingThread import TestingThread
 
@@ -48,7 +48,7 @@ passive_frame_queue = queue.Queue(maxsize=1)
 tts_thread = TTSThread(name="SmartSight-TTS")
 tts_thread.start()
 
-testingThread = None
+testingThread = TestingThread(callback=tts_thread.add_message)
 USE_TESTING_THREAD = False
 
 
@@ -85,22 +85,10 @@ TimeTTSStart = 0
 # ----------------------------------------------------------------------------
 
 # Input thread for active-mode trigger
-def testing_thread():
-    global testingThread, USE_TESTING_THREAD, tts_thread
-    if testingThread is not None or not testingThread.is_alive():
-        testingThread = TestingThread(callback=tts_thread.add_message)
-        testingThread.start()
-        USE_TESTING_THREAD = True
-        print("Testing thread started")
-    else:
-        print("Testing thread already running")
 
 def check_input():
     global passive, Recording, TimeKeyPressed, RecordingTranscription, active_frame, passive_frame_queue
     while True:
-        if keyboard.is_pressed('t'):
-            testing_thread()
-            time.sleep(0.3)
         if keyboard.is_pressed('space'):
             if not Recording:
                 TimeKeyPressed = time.time()
@@ -513,6 +501,8 @@ def run_main_server():
         print(f"Server listening on {SERVER_IP6}:{SERVER_PORT6}") # {SERVER_IP}:{SERVER_PORT},
         print("Waiting for client connection...")
 
+        #testing thread 
+        
         # Accept a connection from a client
         connection, client_address = server_socket6.accept()
         print(f"Connected to client: {client_address}")
@@ -532,10 +522,13 @@ def run_main_server():
         input_thread.daemon = True
         input_thread.start()
         print("Main display loop started. Press 'Q' to quit.")
+        
+        testingThread.start()
         while not stop_event.is_set():
             try:
                 # Try to get the latest processed frame for display
                 frame_to_display = processed_frame_queue.get(timeout=0.01) # Small timeout
+                
                 if frame_to_display is not None and frame_to_display.size > 0:
                     cv2.imshow('Live Processed Stream (Press Q to quit)', frame_to_display)
                     # passive_frame_queue.put_nowait(frame_to_display)

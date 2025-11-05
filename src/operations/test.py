@@ -1,65 +1,54 @@
-import threading
-import queue
-import pyttsx3
 import time
-from enum import Enum
+from TextToSpeechThread import TTSThread  # Replace with your actual module name
 
-class Priority(Enum):
-    URGENT = 0
-    NORMAL = 1
-
-class AddMessageInterruptTTS(threading.Thread):
-    def __init__(self):
-        super().__init__(daemon=True)
-        self.engine = pyttsx3.init()
-        self.queue = queue.PriorityQueue()
-        self.stop_flag = threading.Event()
-        self.lock = threading.Lock()
-        self.current_priority = None
-        self.is_speaking = False
-
-    def run(self):
-        while not self.stop_flag.is_set():
-            try:
-                priority_value, message = self.queue.get(timeout=0.2)
-            except queue.Empty:
-                continue
-
-            with self.lock:
-                self.current_priority = priority_value
-                self.is_speaking = True
-
-            print(f"Speaking [{Priority(priority_value).name}]: {message}")
-            self.engine.say(message)
-            self.engine.runAndWait()
-
-            with self.lock:
-                self.is_speaking = False
-                self.current_priority = None
-
-    def add_message(self, message, priority=Priority.NORMAL):
-        with self.lock:
-            # Check if new message has higher priority than current speech
-            if self.is_speaking and self.current_priority is not None and priority.value < self.current_priority:
-                print(f"Interrupting {Priority(self.current_priority).name} speech with {priority.name} message")
-                self.engine.stop()  # Interrupt ongoing speech
-
-        # Add message to queue
-        self.queue.put((priority.value, message))
-
-    def stop(self):
-        self.stop_flag.set()
-        self.engine.stop()
+def test_interruption():
+    """Test the TTS interruption system with different priority levels."""
+    
+    # Create and start the TTS thread
+    tts = TTSThread()
+    tts.start()
+    
+    print("\n=== TEST 1: Passive -> Active Interruption ===")
+    tts.add_message("This is a very long passive message that should be interrupted by an active message in about two seconds.", priority="passive")
+    time.sleep(2)  # Let it start speaking
+    tts.add_message("Active message interrupting!", priority="active")
+    time.sleep(3)
+    
+    print("\n=== TEST 2: Active -> Urgent Interruption ===")
+    tts.add_message("This is a long active message that will be interrupted by an urgent message.", priority="active")
+    time.sleep(2)
+    tts.add_message("URGENT! This is critical!", priority="urgent")
+    time.sleep(3)
+    
+    print("\n=== TEST 3: Multiple Passive Messages (No Interruption) ===")
+    tts.add_message("First passive message.", priority="passive")
+    time.sleep(0.5)
+    tts.add_message("Second passive message.", priority="passive")
+    time.sleep(0.5)
+    tts.add_message("Third passive message.", priority="passive")
+    time.sleep(8)  # Wait for all to finish
+    
+    print("\n=== TEST 4: Rapid Urgent Messages ===")
+    tts.add_message("Long passive message that will definitely be interrupted multiple times.", priority="passive")
+    time.sleep(1)
+    tts.add_message("First urgent interruption!", priority="urgent")
+    time.sleep(0.5)
+    tts.add_message("Second urgent interruption!", priority="urgent")
+    time.sleep(5)
+    
+    print("\n=== TEST 5: Queue Buildup with Interruption ===")
+    tts.add_message("Passive message one.", priority="passive")
+    tts.add_message("Passive message two.", priority="passive")
+    tts.add_message("Passive message three.", priority="passive")
+    time.sleep(2)  # Let first one start
+    tts.add_message("URGENT interruption cutting through queue!", priority="urgent")
+    time.sleep(10)
+    
+    # Cleanup
+    print("\n=== Stopping TTS Thread ===")
+    tts.stop()
+    tts.join(timeout=3)
+    print("Test complete!")
 
 if __name__ == "__main__":
-    tts = AddMessageInterruptTTS()
-    tts.start()
-
-    # Add a normal message that takes time to speak
-    tts.add_message("This is a normal message taking some time.", Priority.NORMAL)
-    time.sleep(1)  # Allow speech to start
-
-    # Add an urgent message that interrupts
-    tts.add_message("Urgent message interrupting!", Priority.URGENT)
-
-    
+    test_interruption()
