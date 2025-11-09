@@ -24,9 +24,10 @@ import numpy as np
 import sys
 import queue
 
-
+SimulateStream = False
 # --- Configuration ---
 SERVER_IP = '0.0.0.0'
+SERVER_IP6 = '::'
 SERVER_PORT = 8000
 HEADER_SIZE = struct.calcsize('<L') # Size of the header (4 bytes for unsigned long)
 
@@ -102,6 +103,13 @@ def image_receiver_thread(connection):
     Thread function to continuously receive raw image data from the socket.
     It puts the received raw image data into `raw_frame_queue`.
     """
+    global SimulateStream, raw_frame_queue
+    print("Running image_receiver_thread.")
+    if SimulateStream is True:
+        while True:
+            image_data = cv2.imread("test_image.jpg")
+            raw_frame_queue.put_nowait(image_data)
+            print("Running image_receiver_thread in Simulation Mode.")
     data_buffer = b''
     payload_size = 0
 
@@ -461,35 +469,45 @@ def active_passive_mode():
 
 
 def run_server():
-    global passive_frame_queue
+    global passive_frame_queue, SimulateStream
     """
     Main server function to set up socket, accept connection, and manage threads.
     It handles the display of processed frames.
     """
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
+    server_socket = None
+    if SimulateStream is False:
+        server_socket = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        # server_socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)  # allow IPv4 too
     connection = None # Initialize connection to None
-
+    receiver_t = None 
+    processor_t = None 
+    input_thread = None
     try:
         # Start the active_passive_mode thread
         main_thread = threading.Thread(target=active_passive_mode)
         main_thread.daemon = True
         main_thread.start()
+        print("Successfully started active mode.")
+        print(f"Starting server on on {SERVER_IP6}:{SERVER_PORT}")
+        connection = client_address = None
+        if SimulateStream is False:
+            server_socket.bind((SERVER_IP6, SERVER_PORT))
+            server_socket.listen(1)
+            print(f"Server listening on {SERVER_IP6}:{SERVER_PORT}")
+            print("Waiting for client connection...")
 
-        server_socket.bind((SERVER_IP, SERVER_PORT))
-        server_socket.listen(1)
-        print(f"Server listening on {SERVER_IP}:{SERVER_PORT}")
-        print("Waiting for client connection...")
-
-        # Accept a connection from a client
-        connection, client_address = server_socket.accept()
-        print(f"Connected to client: {client_address}")
-
+            # Accept a connection from a client
+            connection, client_address = server_socket.accept()
+            print(f"Connected to client: {client_address}")
+        else:
+            print("Simulate enabled.")
+    
         # Start the receiver thread
         receiver_t = threading.Thread(target=image_receiver_thread, args=(connection,))
         receiver_t.daemon = True # Allow main program to exit even if thread is running
         receiver_t.start()
+        print("Created receiver!")
 
         # Start the processing thread
         processor_t = threading.Thread(target=image_processing_thread)
@@ -550,11 +568,14 @@ def run_server():
         print("Closing connections and resources.")
         stop_event.set() # Ensure all threads are signaled to stop
         # Give threads a moment to finish before joining
-        receiver_t.join(timeout=1)
-        processor_t.join(timeout=1)
+        if receiver_t:
+            receiver_t.join(timeout=1)
+        if processor_t:
+            processor_t.join(timeout=1)
         if connection:
             connection.close()
-        server_socket.close()
+        if server_socket:
+            server_socket.close()
         cv2.destroyAllWindows()
         print("Server shutdown complete.")
 
