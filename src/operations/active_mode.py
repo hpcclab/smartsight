@@ -13,6 +13,9 @@ from nemoguardrails import LLMRails, RailsConfig
 from operations.commands import Commands
 from paddleocr import PaddleOCR
 from pathlib import Path
+import base64
+import requests
+from io import BytesIO
 
 class ActiveMode:
     def __init__(self, ocr_engine):
@@ -77,6 +80,77 @@ class ActiveMode:
         transcription = self.whisperModel.transcribe("recording.wav")
         print(transcription["text"])
         return transcription["text"]
+    
+    def encode_image_to_base64(self, image_path):
+        with open(image_path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode('utf-8')
+    
+    def get_completion2(self, prompt, image_path, model="google/gemma-3-4b-it:free"):
+        OPENROUTER_API_KEY = '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'
+        ########### NEW STUFF
+        try:
+            api_key = OPENROUTER_API_KEY
+
+            if not prompt:
+                print('error: No prompt provided.')
+                return "error: No prompt provided."
+            base64_image = self.encode_image_to_base64(image_path)
+            data_url = f"data:image/jpeg;base64,{base64_image}"
+                
+            # Construct the vision model payload
+            # The 'content' is now a list of parts (text and image)
+
+            url = "https://openrouter.ai/api/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            }
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": prompt
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": data_url
+                            }
+                        }
+                    ]
+                }
+            ]
+
+            payload = {
+                "model": model,
+                "messages": messages
+            }
+            response = requests.post(url, headers=headers, json=payload)
+
+
+            # Handle potential errors from OpenRouter
+            response.raise_for_status() # Raises an exception for bad status codes
+
+            # Parse the JSON response
+            result = response.json()
+            
+            # Handle cases where the response might be empty or malformed
+            if not result.get('choices') or not result['choices'][0].get('message'):
+                print('Invalid response from model.')
+                return 'Invalid response from model.'
+                
+            model_response = result['choices'][0]['message']['content']
+            return model_response
+            
+        except requests.exceptions.RequestException as e:
+            # Provide more detail on API errors
+            error_details = e.response.text if e.response else str(e)
+            print(f'API request failed: {error_details}')
+        except Exception as e:
+            print(f'An unexpected error occurred: {e}')
+        ########### END NEW STUFF
 
     def get_completion(self, prompt, image_path, model="meta-llama/llama-3.2-11b-vision-instruct"):
         with open(image_path, "rb") as image_file:
@@ -119,8 +193,12 @@ class ActiveMode:
             print(f"Processing image...")
             imgName = "MLLMImg.jpg"
             imwrite(imgName, img)
-            ai_response = self.get_completion(prompt, imgName)
-            final_response = self.nemo(ai_response)
+            ai_response = self.get_completion2(prompt, imgName)
+
+            
+            # final_response = self.nemo(ai_response)
+            final_response = ai_response # TEMP: For testing.
+
 
             self.engine.say(final_response)
             self.engine.runAndWait()
@@ -129,3 +207,4 @@ class ActiveMode:
             result_file.write(f"Original Response: {ai_response}\n")
             result_file.write(f"Nemo Guardrails: {final_response}\n\n")
             result_file.write("---------------------\n") 
+            

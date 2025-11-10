@@ -383,9 +383,9 @@ def active_passive_mode():
             frame_start_time = time.time()
             try:
                 frame = passive_frame_queue.get(timeout=0.1)
-                print("Passive perception is active...")
+                # print("Passive perception is active...")
                 if frame is not None and frame.size > 0:
-                    print("Detecting objects.")
+                    # print("Detecting objects.")
                     yolo_results = object_detector.detect(frame)
 
                     object_counts = Counter()
@@ -399,7 +399,7 @@ def active_passive_mode():
                             class_id = int(box.cls[0])
                             class_name = model.names[class_id]
                             conf = box.conf
-                            print(f"Detected {class_name}. Confidence: {conf}")
+                            # print(f"Detected {class_name}. Confidence: {conf}")
                             if conf >= minConf:
                                 if f"{class_name} with text" not in text_announcements:
                                     object_counts[class_name] += 1
@@ -410,8 +410,8 @@ def active_passive_mode():
                         for obj, count in object_counts.items()
                         if not any(obj == old.obj and count <= old.count for old in prev_detected_objects)
                     }
-                    for old in prev_detected_objects:
-                        print(str(old))
+                    # for old in prev_detected_objects:
+                    #     print(str(old))
 
                     for old in list(prev_detected_objects): 
                         if old.obj not in object_counts:
@@ -441,11 +441,11 @@ def active_passive_mode():
                         speech_text = " " + ", ".join(
                             [f"{count} {o}" if count > 1 else o for o, count in new_objects.items()]
                         )
-                        print("New detections, speaking out:", speech_text)
+                        # print("New detections, speaking out:", speech_text)
                         engine.say(speech_text)
                         engine.runAndWait()
-                    else:
-                        print("No new objects detected.")
+                    # else:
+                        # print("No new objects detected.")
                     # --- FPS Calculation Logic ---
                     frame_count += 1
                     # Calculate and print FPS every 30 frames
@@ -455,14 +455,15 @@ def active_passive_mode():
                         elapsed_time = end_time - start_time
                         # Calculate average FPS over that period
                         current_fps = frame_count / elapsed_time
-                        print(f"------------------------------------")
-                        print(f"Average FPS over last 30 frames: {current_fps:.2f}")
-                        print(f"------------------------------------")
+                        # print(f"------------------------------------")
+                        # print(f"Average FPS over last 30 frames: {current_fps:.2f}")
+                        # print(f"------------------------------------")
                         # Reset counters for the next batch
                         frame_count = 0
                         start_time = time.time()
             except queue.Empty:
                 print("Passive queue empty. Trying again.")
+                a=0
             except Exception as e:
                 print(f"An unexpected error occurred in the passive mode: {e}")
         time.sleep(0.01)
