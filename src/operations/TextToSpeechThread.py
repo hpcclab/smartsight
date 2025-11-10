@@ -17,6 +17,8 @@ class TTSThread(threading.Thread):
         
         # Flag to indicate interruption occurred
         self.interrupted = threading.Event()
+        # Flag to track if engine needs reset
+        self.needs_reset = threading.Event()
 
         self.engine = None
         self.current_priority = None  # "urgent" | "active" | "passive"
@@ -27,10 +29,9 @@ class TTSThread(threading.Thread):
     def initialize_engine(self):
         """Initialize pyttsx3 engine with default properties."""
         try:
-            # Clean up old engine first
+            # Clean up old engine first if it exists
             if self.engine is not None:
                 try:
-                    self.engine.stop()
                     del self.engine
                 except:
                     pass
@@ -41,9 +42,12 @@ class TTSThread(threading.Thread):
                 self.engine.setProperty('voice', voices[1].id)
             self.engine.setProperty('volume', 1.0)
             self.engine.setProperty('rate', 150)
+            self.needs_reset.clear()
             print(f"[{self.name}] Engine Initialized Successfully")
         except Exception as e:
             print(f"[{self.name}] Failed to initialize engine: {e}")
+            import traceback
+            traceback.print_exc()
             self.engine = None
 
     def run(self):
@@ -56,15 +60,16 @@ class TTSThread(threading.Thread):
                 priority, message = self.get_next_message()
 
                 if message is None:
-                    time.sleep(0.05)  # idle briefly
+                    time.sleep(0.01)  # shorter idle time for better responsiveness
                     continue
 
-                # Ensure engine is ready - REINITIALIZE IF NEEDED
-                if self.engine is None:
-                    print(f"[{self.name}] Engine is None, reinitializing...")
+                # Only reinitialize if flagged as needed
+                if self.needs_reset.is_set() or self.engine is None:
+                    print(f"[{self.name}] Engine needs reset, reinitializing...")
                     self.initialize_engine()
-                    # Give engine a moment to fully initialize
-                    time.sleep(0.1)
+                    if self.engine is None:
+                        print(f"[{self.name}] Failed to initialize engine, skipping message")
+                        continue
 
                 # Reset interruption flag at start of new message
                 self.interrupted.clear()
@@ -74,7 +79,6 @@ class TTSThread(threading.Thread):
                     with self.speaking_lock:
                         self.is_speaking = True
                         self.current_priority = self.priority_name(priority)
-                        print(f"[{self.name}] CURRENT PRIORITY: {self.current_priority}")
 
                     print(f"[{self.name}] Speaking ({self.current_priority}): {message[:40]}...")
                     
@@ -83,56 +87,46 @@ class TTSThread(threading.Thread):
                     
                     # Check if we were interrupted during speech
                     if self.interrupted.is_set():
-                        print(f"[{self.name}] Message was interrupted - resetting engine")
-                        # Force engine reset after interruption
-                        try:
-                            self.engine.stop()
-                        except:
-                            pass
-                        self.engine = None
+                        print(f"[{self.name}] Message was interrupted")
+                        # Mark engine for reset only after interruption
+                        self.needs_reset.set()
                     else:
                         print(f"[{self.name}] Finished speaking: {message[:40]}...")
-                        # Even after successful speech, reinitialize to ensure clean state
-                        print(f"[{self.name}] Reinitializing engine for next message...")
-                        self.engine = None
+                        # Engine is fine, no reset needed
 
+                except RuntimeError as e:
+                    # RuntimeError often happens after engine.stop() is called
+                    if "run loop already started" in str(e).lower() or self.interrupted.is_set():
+                        print(f"[{self.name}] Expected interruption error, engine will reset")
+                    else:
+                        print(f"[{self.name}] RuntimeError: {e}")
+                    self.needs_reset.set()
+                    
                 except Exception as e:
-                    # Check if error was due to interruption
                     if self.interrupted.is_set():
-                        print(f"[{self.name}] Speech interrupted (expected error)")
+                        print(f"[{self.name}] Speech interrupted (expected)")
                     else:
                         print(f"[{self.name}] Speech error: {e}")
                         import traceback
                         traceback.print_exc()
-                    
-                    # ALWAYS reset engine after error or interruption
-                    try:
-                        if self.engine is not None:
-                            self.engine.stop()
-                    except:
-                        pass
-                    self.engine = None
-                    print(f"[{self.name}] Engine reset - will reinitialize on next message")
+                    self.needs_reset.set()
 
                 finally:
                     with self.speaking_lock:
                         self.is_speaking = False
                         self.current_priority = None
-                        print(f"[{self.name}] Reset state - is_speaking=False, current_priority=None")
-                        print(f"[{self.name}] DEBUG: Messages remaining in queue: {self.queue.qsize()}")
             
             except Exception as e:
                 print(f"[{self.name}] Fatal error in run loop: {e}")
                 import traceback
                 traceback.print_exc()
-                self.engine = None  # Reset engine on fatal error
-                time.sleep(0.1)  # Prevent tight error loop
+                self.needs_reset.set()
+                time.sleep(0.01)
 
     def get_next_message(self):
         """Get next message from priority queue (lowest number = highest priority)."""
         try:
             priority, message = self.queue.get_nowait()
-            print(f"[{self.name}] Retrieved message from queue: priority={priority}, msg='{message[:30]}...'")
             return priority, message
         except queue.Empty:
             return None, None
@@ -141,15 +135,14 @@ class TTSThread(threading.Thread):
         """Add message to the single priority queue."""
         priority_val = self.priority_value(priority)
         self.queue.put((priority_val, message))
-        print(f"[{self.name}] Queued ({priority}): {message[:40]}... [Queue size: {self.queue.qsize()}]")
+        print(f"[{self.name}] Queued ({priority}): {message[:40]}...")
 
         # Interrupt if necessary
         with self.speaking_lock:
-            if self.current_priority is not None:
+            if self.is_speaking and self.current_priority is not None:
                 current_val = self.priority_value(self.current_priority)
                 if priority_val < current_val:
                     print(f"[{self.name}] INTERRUPTING! {self.current_priority} -> {priority}")
-                    print(f"[{self.name}] Stopping current speech to announce higher priority message")
                     
                     # Set interruption flag
                     self.interrupted.set()
@@ -158,13 +151,12 @@ class TTSThread(threading.Thread):
                     try:
                         if self.engine is not None:
                             self.engine.stop()
-                            print(f"[{self.name}] Engine stopped.")
-                            # Force reinitialization on next message
-                            self.engine = None
-                            print(f"[{self.name}] Engine set to None - will reinitialize")
+                            # Mark for reset after interruption
+                            self.needs_reset.set()
+                            print(f"[{self.name}] Engine stopped, marked for reset")
                     except Exception as e:
-                        print(f"[{self.name}] Error stopping engine during interruption: {e}")
-                        self.engine = None
+                        print(f"[{self.name}] Error stopping engine: {e}")
+                        self.needs_reset.set()
 
     @staticmethod
     def priority_value(priority):
@@ -199,11 +191,14 @@ class TTSThread(threading.Thread):
                 cleared += 1
             except queue.Empty:
                 break
-        print(f"[{self.name}] Cleared {cleared} messages from queue")
+        if cleared > 0:
+            print(f"[{self.name}] Cleared {cleared} messages from queue")
         
         try:
             if self.engine is not None:
                 self.engine.stop()
+                del self.engine
+                self.engine = None
         except Exception as e:
             print(f"[{self.name}] Error stopping engine: {e}")
         print(f"[{self.name}] Stopped successfully!")
@@ -213,31 +208,38 @@ class TTSThread(threading.Thread):
 # TEST CODE
 # ============================================
 
-def test_interruption():
-    """Test the TTS interruption system with different priority levels."""
+def test_speed_and_interruption():
+    """Test speed and responsiveness of the TTS system."""
     
-    # Create and start the TTS thread
     tts = TTSThread()
     tts.start()
     
-    print("\n=== TEST 1: Simple Interruption Test ===")
-    tts.add_message("This is a very long passive message that should be interrupted by an urgent message in about two seconds. I will keep talking to give you enough time to interrupt me.", priority="passive")
-    time.sleep(2)  # Let it start speaking
-    tts.add_message("URGENT! Critical interruption!", priority="urgent")
-    time.sleep(5)  # Wait longer to see if it continues
+    print("\n=== TEST 1: Rapid Sequential Messages (Speed Test) ===")
+    start = time.time()
+    tts.add_message("Message one.", priority="passive")
+    tts.add_message("Message two.", priority="passive")
+    tts.add_message("Message three.", priority="passive")
+    time.sleep(8)
+    elapsed = time.time() - start
+    print(f"Time for 3 messages: {elapsed:.2f}s")
     
-    print(f"\nDEBUG: Queue size after test 1: {tts.queue.qsize()}")
-    print(f"DEBUG: Is speaking: {tts.is_speaking}")
+    print("\n=== TEST 2: Interruption with Quick Recovery ===")
+    tts.add_message("This is a long passive message that will be interrupted in two seconds.", priority="passive")
+    time.sleep(2)
+    tts.add_message("URGENT!", priority="urgent")
+    time.sleep(2)
+    tts.add_message("Back to normal passive message.", priority="passive")
+    time.sleep(4)
     
-    print("\n=== TEST 2: Three Messages in Sequence ===")
-    tts.add_message("First message.", priority="passive")
-    time.sleep(3)
-    tts.add_message("Second message.", priority="passive")
-    time.sleep(3)
-    tts.add_message("Third message.", priority="passive")
+    print("\n=== TEST 3: Multiple Rapid Interruptions ===")
+    tts.add_message("Long passive background message that keeps getting interrupted.", priority="passive")
+    time.sleep(1)
+    tts.add_message("First urgent interruption!", priority="urgent")
+    time.sleep(0.5)
+    tts.add_message("Second urgent interruption!", priority="urgent")
+    time.sleep(0.5)
+    tts.add_message("Third urgent interruption!", priority="urgent")
     time.sleep(5)
-    
-    print(f"\nDEBUG: Final queue size: {tts.queue.qsize()}")
     
     # Cleanup
     print("\n=== Stopping TTS Thread ===")
@@ -247,4 +249,4 @@ def test_interruption():
 
 
 if __name__ == "__main__":
-    test_interruption()
+    test_speed_and_interruption()

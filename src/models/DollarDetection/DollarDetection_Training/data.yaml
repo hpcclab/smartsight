@@ -1,13 +1,13 @@
-train: "C:\Users\Crack\2025_AI\DeepLearning\DollarDetection\train"
-val: "C:\Users\Crack\2025_AI\DeepLearning\DollarDetection\valid"
-test: "C:\Users\Crack\2025_AI\DeepLearning\DollarDetection\test"
+train: "C:/Users/Crack/2025_AI/DeepLearning/DollarDetection/train"
+val: "C:/Users/Crack/2025_AI/DeepLearning/DollarDetection/valid"
+test: "C:/Users/Crack/2025_AI/DeepLearning/DollarDetection/test"
 
 nc: 10
 names: ['fifty-back', 'fifty-front', 'five-back', 'five-front', 'one-back', 'one-front', 'ten-back', 'ten-front', 'twenty-back', 'twenty-front']
 
-roboflow:
-  workspace: alex-hyams-cosqx
-  project: dollar-bill-detection
-  version: 24
-  license: CC BY 4.0
-  url: https://universe.roboflow.com/alex-hyams-cosqx/dollar-bill-detection/dataset/24
+# roboflow:
+#   workspace: alex-hyams-cosqx
+#   project: dollar-bill-detection
+#   version: 24
+#   license: CC BY 4.0
+#   url: https://universe.roboflow.com/alex-hyams-cosqx/dollar-bill-detection/dataset/24

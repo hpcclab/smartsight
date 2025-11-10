@@ -6,7 +6,7 @@ from ultralytics import YOLO
 class DollarBillDetection:
     
     def __init__(self, model_path, name, conf=0.5):
-        self.model = YOLO(model_path)
+        self.model = YOLO("C:/Users/Crack/2025_AI/DeepLearning/DollarDetection/runs/detect/train/weights/best.pt")
         self.conf = conf 
         self.name = name 
     
@@ -16,7 +16,7 @@ class DollarBillDetection:
         for r in results:
             for box in r.boxes:
                 cls = int(box.cls)
-                label = self.model.name[cls]
+                label = self.model.names[cls]
                 conf = float(box.conf)
                 xyxy = box.xyxy[0].cpu().numpy().tolist()
                 msg = f"{label.capitalize()} detected"
