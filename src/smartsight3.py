@@ -14,9 +14,9 @@ from operations.object_detection import ObjectDetection
 from operations.face_perception import FacePerception
 from operations.active_mode import ActiveMode
 from operations.text_detection import TextDetector
-from operations.TextToSpeechThread import TTSThread
+from operations.TTS.TextToSpeechThread import TTSThread
 from operations.commands import build_ocr 
-from operations.TestingThread import TestingThread
+from operations.TTS.TestingThread import TestingThread
 
 # import operations.optical_flow
 
