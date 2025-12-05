@@ -7,7 +7,7 @@ try:
 except ImportError:
     msvcrt = None
 
-from operations.TTS.TextToSpeechThread import TTSThread
+from TextToSpeechThread import TTSThread
 
 
 class FeederManager:
