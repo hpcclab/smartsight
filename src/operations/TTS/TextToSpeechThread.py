@@ -2,188 +2,136 @@ import threading
 import queue
 import pyttsx3
 import time
-import traceback
 import os
 
-# ANSI Color codes for terminal output
-class Colors:
+class Console:
+    """Handles ANSI colors and centralized logging."""
     RESET = '\033[0m'
     BOLD = '\033[1m'
+    CYAN = '\033[36m'     # Info
+    GREEN = '\033[32m'    # Success
+    YELLOW = '\033[33m'   # Warning
+    RED = '\033[31m'      # Error
+    MAGENTA = '\033[35m'  # Urgent
+    BLUE = '\033[34m'     # Active
     
-    # Foreground colors
-    CYAN = '\033[36m'       # Info messages
-    GREEN = '\033[32m'      # Success/Finished
-    YELLOW = '\033[33m'     # Warnings/Queue
-    RED = '\033[31m'        # Errors
-    MAGENTA = '\033[35m'    # Urgent
-    BLUE = '\033[34m'       # Active
-    WHITE = '\033[37m'      # Passive
-    
-    # Background colors (optional)
-    BG_RED = '\033[41m'
-
-# Detect if running in a terminal that supports colors
-SUPPORTS_COLOR = hasattr(os.sys.stdout, 'isatty') and os.sys.stdout.isatty()
-
+    @staticmethod
+    def log(source, message, color=CYAN):
+        timestamp = time.strftime("%H:%M:%S")
+        print(f"{color}[{timestamp}] [{source}] {message}{Console.RESET}")
 
 class TTSThread(threading.Thread):
-    """Text-to-Speech thread with priority-based message queuing and interruption support."""
-    
-    # Priority mappings as class constants
     PRIORITIES = {"urgent": 0, "active": 1, "passive": 2}
     PRIORITY_NAMES = {v: k for k, v in PRIORITIES.items()}
-    
-    def __init__(self, name="SmartSight-TTS", daemon=True):
-        super().__init__(name=name, daemon=daemon)
-        
+    PRIORITY_COLORS = {0: Console.MAGENTA, 1: Console.BLUE, 2: Console.RESET}
+
+    def __init__(self):
+        super().__init__(name="TTS-Thread", daemon=True)
         self.queue = queue.PriorityQueue()
-        self.stop_running = threading.Event()
-        self.interrupted = threading.Event()
+        self.stop_event = threading.Event()
+        self.interrupted_event = threading.Event()
         self.speaking_lock = threading.Lock()
         
         self.engine = None
-        self.current_priority = None
+        self.current_priority_val = None
         self.is_speaking = False
-        
-        self._log("Initialized.", color=Colors.GREEN)
-
-    def _log(self, message, color=Colors.CYAN):
-        """Centralized logging with thread name prefix and optional color."""
-        if SUPPORTS_COLOR:
-            print(f"{color}[{self.name}] {message}{Colors.RESET}")
-        else:
-            print(f"[{self.name}] {message}")
-
-    def _reset_engine(self):
-        """Safely stop and reset the TTS engine."""
-        if self.engine is not None:
-            try:
-                self.engine.stop()
-            except Exception:
-                pass
-            self.engine = None
 
     def _initialize_engine(self):
-        """Initialize pyttsx3 engine with default properties."""
-        self._reset_engine()
-        
+        """Initializes engine and connects the 'started-word' callback."""
+        try:
+            if self.engine:
+                self.engine.stop()
+                del self.engine
+        except: pass
+            
         try:
             self.engine = pyttsx3.init()
-            voices = self.engine.getProperty('voices')
-            if len(voices) > 1:
-                self.engine.setProperty('voice', voices[1].id)
+            self.engine.setProperty('rate', 160)
             self.engine.setProperty('volume', 1.0)
-            self.engine.setProperty('rate', 150)
-            self._log("Engine initialized successfully.", color=Colors.GREEN)
-        except Exception as e:
-            self._log(f"Failed to initialize engine: {e}", color=Colors.RED)
-            self.engine = None
-
-    def _ensure_engine(self):
-        """Ensure engine is ready, reinitializing if needed."""
-        if self.engine is None:
-            self._log("Engine is None, reinitializing...", color=Colors.YELLOW)
-            self._initialize_engine()
-            time.sleep(0.1)
-
-    def _get_next_message(self):
-        """Get next message from priority queue (non-blocking)."""
-        try:
-            priority, message = self.queue.get_nowait()
-            priority_name = self.PRIORITY_NAMES.get(priority, "passive")
-            priority_color = {0: Colors.MAGENTA, 1: Colors.BLUE, 2: Colors.WHITE}.get(priority, Colors.CYAN)
-            self._log(f"Retrieved: priority={priority_name}, msg='{message[:30]}'...", color=priority_color)
-            return priority, message
-        except queue.Empty:
-            return None, None
-
-    def _speak_message(self, priority, message):
-        """Handle speaking a single message with proper state management."""
-        self.interrupted.clear()
-        
-        with self.speaking_lock:
-            self.is_speaking = True
-            self.current_priority = self.PRIORITY_NAMES.get(priority, "passive")
-        
-        priority_color = {0: Colors.MAGENTA, 1: Colors.BLUE, 2: Colors.WHITE}.get(priority, Colors.CYAN)
-        self._log(f"Speaking ({self.current_priority}): {message[:40]}...", color=priority_color)
-        
-        try:
-            self.engine.say(message)
-            self.engine.runAndWait()
             
-            if self.interrupted.is_set():
-                self._log("Message was interrupted - resetting engine", color=Colors.YELLOW)
-                self._reset_engine()
-            else:
-                self._log(f"Finished speaking: {message[:40]}...", color=Colors.GREEN)
+            # Hook the callback for word-level control
+            self.engine.connect('started-word', self._on_word)
+            
+            # Select voice (standardize)
+            voices = self.engine.getProperty('voices')
+            if voices and len(voices) > 1:
+                self.engine.setProperty('voice', voices[1].id)
                 
+            Console.log(self.name, "Engine initialized (Callback Mode).", Console.GREEN)
         except Exception as e:
-            if self.interrupted.is_set():
-                self._log("Speech interrupted (expected error)", color=Colors.YELLOW)
-            else:
-                self._log(f"Speech error: {e}", color=Colors.RED)
-                traceback.print_exc()
-            self._reset_engine()
-            self._log("Engine reset - will reinitialize on next message", color=Colors.YELLOW)
-        
-        finally:
-            with self.speaking_lock:
-                self.is_speaking = False
-                self.current_priority = None
-            self._log(f"State reset. Queue size: {self.queue.qsize()}", color=Colors.CYAN)
+            Console.log(self.name, f"Engine Init Failed: {e}", Console.RED)
+
+    def _on_word(self, name, location, length):
+        """
+        Callback triggered by pyttsx3 before every word.
+        """
+        if self.interrupted_event.is_set():
+            # Stop the engine immediately from within the event loop
+            self.engine.stop()
 
     def run(self):
-        """Main thread loop - process messages from the queue."""
-        self._ensure_engine()
+        self._initialize_engine()
         
-        while not self.stop_running.is_set():
+        while not self.stop_event.is_set():
             try:
-                priority, message = self._get_next_message()
+                # 1. Get message (Block until available)
+                priority_val, message = self.queue.get(timeout=0.5)
                 
-                if message is None:
-                    time.sleep(0.05)
-                    continue
+                # 2. Update State
+                with self.speaking_lock:
+                    self.is_speaking = True
+                    self.current_priority_val = priority_val
+                    self.interrupted_event.clear() # Clear any old flags
+
+                p_name = self.PRIORITY_NAMES.get(priority_val, "unknown")
+                p_color = self.PRIORITY_COLORS.get(priority_val, Console.CYAN)
+                Console.log(self.name, f"Speaking ({p_name}): {message[:40]}...", p_color)
+
+                # 3. Speak
+                if self.engine:
+                    try:
+                        self.engine.say(message)
+                        self.engine.runAndWait() # Blocks here, but _on_word runs internally
+                    except Exception as e:
+                        Console.log(self.name, f"Playback Error: {e}", Console.RED)
+                        self._initialize_engine()
                 
-                self._ensure_engine()
-                
-                if self.engine is not None:
-                    self._speak_message(priority, message)
+                # 4. Handle Interruption Result
+                if self.interrupted_event.is_set():
+                    Console.log(self.name, ">> Interrupted successfully.", Console.YELLOW)
+
+                # 5. Reset State
+                with self.speaking_lock:
+                    self.is_speaking = False
+                    self.current_priority_val = None
                     
+            except queue.Empty:
+                continue
             except Exception as e:
-                self._log(f"Fatal error in run loop: {e}", color=Colors.RED)
-                traceback.print_exc()
-                self._reset_engine()
-                time.sleep(0.1)
+                Console.log(self.name, f"Fatal Loop Error: {e}", Console.RED)
+                time.sleep(1)
 
     def add_message(self, message, priority="passive"):
-        """Add message to queue, interrupting lower-priority speech if needed."""
-        priority_val = self.PRIORITIES.get(priority, 2)
-        self.queue.put((priority_val, message))
-        priority_color = {0: Colors.MAGENTA, 1: Colors.BLUE, 2: Colors.WHITE}.get(priority_val, Colors.CYAN)
-        self._log(f"Queued ({priority}): {message[:40]}... [Queue: {self.queue.qsize()}]", color=priority_color)
+        p_val = self.PRIORITIES.get(priority, 2)
         
+        # 1. Push to queue
+        self.queue.put((p_val, message))
+        
+        # 2. Check logic
         with self.speaking_lock:
-            if self.current_priority is not None:
-                current_val = self.PRIORITIES.get(self.current_priority, 2)
-                if priority_val < current_val:
-                    self._log(f"INTERRUPTING: {self.current_priority} -> {priority}", color=Colors.MAGENTA + Colors.BOLD)
-                    self.interrupted.set()
-                    self._reset_engine()
+            if self.is_speaking and self.current_priority_val is not None:
+                if p_val < self.current_priority_val:
+                    Console.log(self.name, f"SIGNALING INTERRUPT: {self.current_priority_val} -> {p_val}", Console.MAGENTA)
+                    self.interrupted_event.set()
 
     def stop(self):
-        """Stop the TTS thread and clear all pending messages."""
-        self._log("Stopping...", color=Colors.YELLOW)
-        self.stop_running.set()
-        
-        cleared = 0
-        while not self.queue.empty():
-            try:
-                self.queue.get_nowait()
-                cleared += 1
-            except queue.Empty:
-                break
-        
-        self._log(f"Cleared {cleared} messages from queue", color=Colors.YELLOW)
-        self._reset_engine()
-        self._log("Stopped successfully!", color=Colors.GREEN)
+        Console.log(self.name, "Stopping thread...", Console.YELLOW)
+        self.stop_event.set()
+        try:
+            self.engine.stop()
+        except: pass
+
+    def clear_queue(self):
+        with self.queue.mutex:
+            self.queue.queue.clear()
+        Console.log(self.name, "Queue Cleared.", Console.YELLOW)

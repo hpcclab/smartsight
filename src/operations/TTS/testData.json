@@ -1,42 +1,42 @@
 [
 {
-"priority": 0,
+"priority": "active",
 "text": "I am ready for your command."
 },
 {
-"priority": 0,
+"priority": "active",
 "text": "Search complete. Found three possible routes."
 },
 {
-"priority": -10,
+"priority": "urgent",
 "text": "WARNING! Unstable ground detected directly in front of you!"
 },
 {
-"priority": 0,
+"priority": "active",
 "text": "How may I help you?"
 },
 {
-"priority": -10,
+"priority": "urgent",
 "text": "DANGER! Obstacle detected in your path!"
 },
 {
-"priority": 0,
+"priority": "active",
 "text": "Navigating now. Please follow the path."
 },
 {
-"priority": -10,
+"priority": "urgent",
 "text": "WARNING! Vehicle approaching from behind!"
 },
 {
-"priority": 0,
+"priority": "active",
 "text": "Please hold while I connect to the server."
 },
 {
-"priority": -10,
+"priority": "urgent",
 "text": "Emergency! Fire alarm detected!"
 },
 {
-"priority": 0,
+"priority": "active",
 "text": "Okay, I've added that to your notes."
 }
 ]

@@ -45,11 +45,11 @@ passive_frame_queue = queue.Queue(maxsize=1)
 
 
 # TTS and Testing Thread
-tts_thread = TTSThread(name="SmartSight-TTS")
+tts_thread = TTSThread()
 tts_thread.start()
 
 testingThread = TestingThread(callback=tts_thread.add_message)
-USE_TESTING_THREAD = False
+
 
 
 # Event to signal all threads to stop
@@ -502,7 +502,8 @@ def run_main_server():
         print("Waiting for client connection...")
 
         #testing thread 
-        
+        testingThread.start()
+        print("Press 'T' to activate the thread")
         # Accept a connection from a client
         connection, client_address = server_socket6.accept()
         print(f"Connected to client: {client_address}")
@@ -523,7 +524,6 @@ def run_main_server():
         input_thread.start()
         print("Main display loop started. Press 'Q' to quit.")
         
-        testingThread.start()
         while not stop_event.is_set():
             try:
                 # Try to get the latest processed frame for display
