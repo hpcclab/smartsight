@@ -86,7 +86,7 @@ class ActiveMode:
             return base64.b64encode(image_file.read()).decode('utf-8')
     
     def get_completion2(self, prompt, image_path, model="google/gemma-3-4b-it:free"):
-        OPENROUTER_API_KEY = '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'
+        OPENROUTER_API_KEY = 'PLACEHOLDER'
         ########### NEW STUFF
         try:
             api_key = OPENROUTER_API_KEY
