@@ -31,8 +31,8 @@ import queue
 # --- Configuration ---
 SERVER_IP6 = '::'
 SERVER_IP = '0.0.0.0'
-SERVER_PORT = 8001
-SERVER_PORT6 = 8000
+SERVER_PORT = 8000
+SERVER_PORT6 = 8001
 HEADER_SIZE = struct.calcsize('<L') # Size of the header (4 bytes for unsigned long)
 
 # --- Shared Resources (Queues and Events) ---
@@ -496,16 +496,16 @@ def run_main_server():
 
         # server_socket.bind((SERVER_IP, SERVER_PORT))
         # server_socket.listen(1)
-        server_socket6.bind((SERVER_IP6, SERVER_PORT6))
-        server_socket6.listen(1)
-        print(f"Server listening on {SERVER_IP6}:{SERVER_PORT6}") # {SERVER_IP}:{SERVER_PORT},
+        server_socket.bind((SERVER_IP, SERVER_PORT))
+        server_socket.listen(1)
+        print(f"Server listening on {SERVER_IP}:{SERVER_PORT}") # {SERVER_IP}:{SERVER_PORT},
         print("Waiting for client connection...")
 
         #testing thread 
         testingThread.start()
         print("Press 'T' to activate the thread")
         # Accept a connection from a client
-        connection, client_address = server_socket6.accept()
+        connection, client_address = server_socket.accept()
         print(f"Connected to client: {client_address}")
 
         # Start the receiver thread
