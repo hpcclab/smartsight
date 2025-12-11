@@ -98,6 +98,17 @@ class PiperTTSThread(threading.Thread):
                 if p_val < self.current_priority_val:
                     self.interrupted_event.set()
 
+    def clear_queue(self):
+        """Clear all pending messages from the queue."""
+        cleared = 0
+        while not self.queue.empty():
+            try:
+                self.queue.get_nowait()
+                cleared += 1
+            except queue.Empty:
+                break
+        Console.log(self.name, f"Cleared {cleared} messages from queue", Console.YELLOW)
+
     def stop(self):
         self.stop_event.set()
         self.interrupted_event.set()

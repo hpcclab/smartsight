@@ -7,9 +7,9 @@ import time
 import keyboard  # used to detect 'T' key presses
 
 
-class TestingThread(threading.Thread):
+class UrgentTestingThread(threading.Thread):
     """
-    Thread that listens for the 'T' key and toggles a local
+    Thread that listens for the 'A' key and toggles a local
     "testing mode" on/off.
 
     While testing mode is ON, it streams messages from
@@ -19,16 +19,16 @@ class TestingThread(threading.Thread):
     """
 
     def __init__(self, callback, daemon=True):
-        super().__init__(daemon=daemon, name="ActiveThread")
+        super().__init__(daemon=daemon, name="UrgentThread")
         self.callback = callback
         self.stop_running = threading.Event()
-        self.key = "t"  # Key to toggle testing mode
+        self.key = "a"  # Key to toggle testing mode
         self._was_pressed = False      # for edge detection of key
         self._testing_active = False   # ON/OFF state of testing mode
         print(f"{self.name} initialized!")
 
     def run(self):
-        data_file = r"src\operations\TTS\testData.json"
+        data_file = r"C:\Users\Crack\OneDrive\Documents\GitHub\smartsight\src\operations\TTS\urgentTestData.json"
         print(f"{self.name} listening for '{self.key.upper()}' key to toggle testing mode...")
 
         while not self.stop_running.is_set():
@@ -130,7 +130,7 @@ def main():
     receiver = Receiver()
     thread = TestingThread(callback=receiver.handle_message)
     thread.start()
-    print("Press 'T' to toggle testing mode ON/OFF. Ctrl+C to quit.")
+    print("Press 'A' to toggle testing mode ON/OFF. Ctrl+C to quit.")
     try:
         while True:
             time.sleep(0.5)

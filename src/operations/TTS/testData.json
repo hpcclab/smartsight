@@ -1,42 +1,6 @@
 [
 {
 "priority": "active",
-"text": "I am ready for your command."
-},
-{
-"priority": "active",
-"text": "Search complete. Found three possible routes."
-},
-{
-"priority": "urgent",
-"text": "WARNING! Unstable ground detected directly in front of you!"
-},
-{
-"priority": "active",
-"text": "How may I help you?"
-},
-{
-"priority": "urgent",
-"text": "DANGER! Obstacle detected in your path!"
-},
-{
-"priority": "active",
-"text": "Navigating now. Please follow the path."
-},
-{
-"priority": "urgent",
-"text": "WARNING! Vehicle approaching from behind!"
-},
-{
-"priority": "active",
-"text": "Please hold while I connect to the server."
-},
-{
-"priority": "urgent",
-"text": "Emergency! Fire alarm detected!"
-},
-{
-"priority": "active",
-"text": "Okay, I've added that to your notes."
+"text": "This is a very long active message that is simulating the active mode of the smartsight glasses. As of right now im just demonstrating how the interupttion mechanism is working if you hear it up to now it is not working!!"
 }
 ]

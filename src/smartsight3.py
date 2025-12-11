@@ -17,6 +17,7 @@ from operations.text_detection import TextDetector
 from operations.TTS.TextToSpeechThread import PiperTTSThread
 from operations.commands import build_ocr 
 from operations.TTS.TestingThread import TestingThread
+from operations.TTS.UrgentDemonstrate import UrgentTestingThread
 
 # import operations.optical_flow
 
@@ -48,8 +49,8 @@ passive_frame_queue = queue.Queue(maxsize=1)
 tts_thread = PiperTTSThread()
 tts_thread.start()
 
-# testingThread = TestingThread(callback=tts_thread.add_message)
-
+testingThread = TestingThread(callback=tts_thread.add_message)
+urgentTesting = UrgentTestingThread(callback=tts_thread.add_message)
 
 
 # Event to signal all threads to stop
@@ -469,10 +470,6 @@ def active_passive_mode():
                 print(f"An unexpected error occurred in the passive mode: {e}")
         time.sleep(0.01)
 
-
-# def server6():
-#     blah="blah blah"
-
 def run_main_server():
     global passive_frame_queue, tts_thread 
     """
@@ -501,9 +498,11 @@ def run_main_server():
         print(f"Server listening on {SERVER_IP}:{SERVER_PORT}") # {SERVER_IP}:{SERVER_PORT},
         print("Waiting for client connection...")
 
-        #testing thread 
-        # testingThread.start()
+        # testing thread 
+        testingThread.start()
         print("Press 'T' to activate the thread")
+        urgentTesting.start() 
+        print("Press 'A' to activate the test")
         # Accept a connection from a client
         connection, client_address = server_socket.accept()
         print(f"Connected to client: {client_address}")
