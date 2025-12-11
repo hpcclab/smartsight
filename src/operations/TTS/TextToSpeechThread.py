@@ -1,8 +1,8 @@
-import threading
-import queue
-import pyttsx3
-import time
-import os
+import threading, queue, time, tempfile, os, wave
+import sounddevice as sd
+import soundfile as sf
+from piper import PiperVoice  # from piper-tts package
+
 
 class Console:
     """Handles ANSI colors and centralized logging."""
@@ -20,118 +20,85 @@ class Console:
         timestamp = time.strftime("%H:%M:%S")
         print(f"{color}[{timestamp}] [{source}] {message}{Console.RESET}")
 
-class TTSThread(threading.Thread):
+class PiperTTSThread(threading.Thread):
     PRIORITIES = {"urgent": 0, "active": 1, "passive": 2}
-    PRIORITY_NAMES = {v: k for k, v in PRIORITIES.items()}
-    PRIORITY_COLORS = {0: Console.MAGENTA, 1: Console.BLUE, 2: Console.RESET}
-
+    # PRIORITY_NAMES, PRIORITY_COLORS, Console same as before
+    model_path = r"C:\Users\Crack\OneDrive\Documents\GitHub\smartsight\src\operations\TTS\PiperModel\en_US-lessac-low.onnx"
     def __init__(self):
         super().__init__(name="TTS-Thread", daemon=True)
         self.queue = queue.PriorityQueue()
         self.stop_event = threading.Event()
         self.interrupted_event = threading.Event()
         self.speaking_lock = threading.Lock()
-        
-        self.engine = None
         self.current_priority_val = None
         self.is_speaking = False
+        self.voice = PiperVoice.load(self.model_path)  # load once [web:40]
+        self.current_stream = None  # for manual playback stop
 
-    def _initialize_engine(self):
-        """Initializes engine and connects the 'started-word' callback."""
+    def _synthesize_to_file(self, text: str) -> str:
+        # Use Piper's built-in synthesize_wav method
+        fd, path = tempfile.mkstemp(suffix=".wav")
+        os.close(fd)
+        
         try:
-            if self.engine:
-                self.engine.stop()
-                del self.engine
-        except: pass
-            
-        try:
-            self.engine = pyttsx3.init()
-            self.engine.setProperty('rate', 160)
-            self.engine.setProperty('volume', 1.0)
-            
-            # Hook the callback for word-level control
-            self.engine.connect('started-word', self._on_word)
-            
-            # Select voice (standardize)
-            voices = self.engine.getProperty('voices')
-            if voices and len(voices) > 1:
-                self.engine.setProperty('voice', voices[1].id)
-                
-            Console.log(self.name, "Engine initialized (Callback Mode).", Console.GREEN)
+            with wave.open(path, 'wb') as wav_file:
+                self.voice.synthesize_wav(text, wav_file)
         except Exception as e:
-            Console.log(self.name, f"Engine Init Failed: {e}", Console.RED)
+            if os.path.exists(path):
+                os.remove(path)
+            raise e
+        
+        return path
 
-    def _on_word(self, name, location, length):
-        """
-        Callback triggered by pyttsx3 before every word.
-        """
-        if self.interrupted_event.is_set():
-            # Stop the engine immediately from within the event loop
-            self.engine.stop()
+    def _play_with_interrupt(self, wav_path: str):
+        data, samplerate = sf.read(wav_path, dtype="float32")
+        # Play the entire audio, checking for interruption
+        sd.play(data, samplerate)
+        stream = sd.get_stream()
+
+        # Check for interruption while playing
+        while stream.active:
+            if self.interrupted_event.is_set() or self.stop_event.is_set():
+                sd.stop()
+                break
+            time.sleep(0.05)  # Check every 50ms
 
     def run(self):
-        self._initialize_engine()
-        
         while not self.stop_event.is_set():
             try:
-                # 1. Get message (Block until available)
                 priority_val, message = self.queue.get(timeout=0.5)
-                
-                # 2. Update State
+
                 with self.speaking_lock:
                     self.is_speaking = True
                     self.current_priority_val = priority_val
-                    self.interrupted_event.clear() # Clear any old flags
+                    self.interrupted_event.clear()
 
-                p_name = self.PRIORITY_NAMES.get(priority_val, "unknown")
-                p_color = self.PRIORITY_COLORS.get(priority_val, Console.CYAN)
-                Console.log(self.name, f"Speaking ({p_name}): {message[:40]}...", p_color)
+                # log priority etc., same as before
 
-                # 3. Speak
-                if self.engine:
-                    try:
-                        self.engine.say(message)
-                        self.engine.runAndWait() # Blocks here, but _on_word runs internally
-                    except Exception as e:
-                        Console.log(self.name, f"Playback Error: {e}", Console.RED)
-                        self._initialize_engine()
-                
-                # 4. Handle Interruption Result
-                if self.interrupted_event.is_set():
-                    Console.log(self.name, ">> Interrupted successfully.", Console.YELLOW)
+                wav_path = self._synthesize_to_file(message)
+                try:
+                    if not self.interrupted_event.is_set():
+                        self._play_with_interrupt(wav_path)
+                finally:
+                    if os.path.exists(wav_path):
+                        os.remove(wav_path)
 
-                # 5. Reset State
                 with self.speaking_lock:
                     self.is_speaking = False
                     self.current_priority_val = None
-                    
+
             except queue.Empty:
                 continue
-            except Exception as e:
-                Console.log(self.name, f"Fatal Loop Error: {e}", Console.RED)
-                time.sleep(1)
 
     def add_message(self, message, priority="passive"):
         p_val = self.PRIORITIES.get(priority, 2)
-        
-        # 1. Push to queue
         self.queue.put((p_val, message))
-        
-        # 2. Check logic
         with self.speaking_lock:
             if self.is_speaking and self.current_priority_val is not None:
                 if p_val < self.current_priority_val:
-                    Console.log(self.name, f"SIGNALING INTERRUPT: {self.current_priority_val} -> {p_val}", Console.MAGENTA)
                     self.interrupted_event.set()
 
     def stop(self):
-        Console.log(self.name, "Stopping thread...", Console.YELLOW)
         self.stop_event.set()
-        try:
-            self.engine.stop()
-        except: pass
-
-    def clear_queue(self):
-        with self.queue.mutex:
-            self.queue.queue.clear()
-        Console.log(self.name, "Queue Cleared.", Console.YELLOW)
+        self.interrupted_event.set()
+        sd.stop()

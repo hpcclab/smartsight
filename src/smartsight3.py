@@ -14,7 +14,7 @@ from operations.object_detection import ObjectDetection
 from operations.face_perception import FacePerception
 from operations.active_mode import ActiveMode
 from operations.text_detection import TextDetector
-from operations.TTS.TextToSpeechThread import TTSThread
+from operations.TTS.TextToSpeechThread import PiperTTSThread
 from operations.commands import build_ocr 
 from operations.TTS.TestingThread import TestingThread
 
@@ -45,10 +45,10 @@ passive_frame_queue = queue.Queue(maxsize=1)
 
 
 # TTS and Testing Thread
-tts_thread = TTSThread()
+tts_thread = PiperTTSThread()
 tts_thread.start()
 
-testingThread = TestingThread(callback=tts_thread.add_message)
+# testingThread = TestingThread(callback=tts_thread.add_message)
 
 
 
@@ -502,7 +502,7 @@ def run_main_server():
         print("Waiting for client connection...")
 
         #testing thread 
-        testingThread.start()
+        # testingThread.start()
         print("Press 'T' to activate the thread")
         # Accept a connection from a client
         connection, client_address = server_socket.accept()
