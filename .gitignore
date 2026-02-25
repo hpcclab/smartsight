@@ -1,0 +1,12 @@
+*.wav
+/env
+/venv
+image.jpg
+results.txt
+config
+/temp
+*.pyc
+*/__pycache__
+/.venv
+/models
+/junk
