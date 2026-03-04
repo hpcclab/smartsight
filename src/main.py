@@ -2,6 +2,10 @@ import modules.shared_buffer as shared_buffer
 import cv2 as cv
 from modules.StreamingManager import CameraStream
 from modules.TTS_module import TTSModule
+from modules.passive_detector_module import PassiveDetectorModule
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # TTS = TTSModule()
 # TTS.execute("test_inference", "Hello, this is a test of the Piper text to speech module.")
@@ -10,7 +14,8 @@ from modules.TTS_module import TTSModule
 stream = CameraStream()
 stream.start()
 
-
+passive_detector = PassiveDetectorModule()
+passive_detector.start()
 
 try:
     while True:
@@ -22,4 +27,7 @@ try:
                 break
 except KeyboardInterrupt:
     print("Shutting down...")
+finally:
+    passive_detector.stop()
     stream.stop()
+    cv.destroyAllWindows()
