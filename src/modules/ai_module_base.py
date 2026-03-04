@@ -3,23 +3,18 @@ import yaml
 import logging
 from abc import ABC, abstractmethod
 from typing import Any, Generator, Union
+from config.config import get_config
 
 # Set up a unified logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 class BaseAIModel(ABC):
-    def __init__(self, config_path: str, section_name: str):
+    def __init__(self, section_name: str):
         self.section_name = section_name
-        self.config = self._load_config(config_path)
+        self.config = get_config().get(self.section_name, {})
         self.model = None
         self.logger = logging.getLogger(self.__class__.__name__)
         self.cache = {}
-
-    def _load_config(self, path: str) -> dict:
-        """Utility to pull only the relevant section from a central YAML."""
-        with open(path, 'r') as f:
-            full_config = yaml.safe_load(f)
-        return full_config.get(self.section_name, {})
 
     @abstractmethod
     def load_model(self):

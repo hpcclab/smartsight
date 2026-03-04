@@ -4,8 +4,8 @@ from ultralytics import YOLO
 from .ai_module_base import BaseAIModel
 
 class ObjectDetectionAIModule(BaseAIModel):
-    def __init__(self, config_path: str = "../config/config.yaml"):
-        super().__init__(config_path, "yolo_vision")
+    def __init__(self):
+        super().__init__("yolo_vision")
 
     def load_model(self):
         """Initializes the YOLO model using the path from config."""

@@ -5,8 +5,8 @@ import os
 from .ai_module_base import BaseAIModel
 
 class FacialRecognitionAIModule(BaseAIModel):
-    def __init__(self, config_path: str = "../config/config.yaml"):
-        super().__init__(config_path, "face_recognition")
+    def __init__(self):
+        super().__init__("face_recognition")
         self.detector = None
         self.data = None
 

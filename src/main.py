@@ -1,6 +1,10 @@
 import modules.shared_buffer as shared_buffer
 import cv2 as cv
 from modules.StreamingManager import CameraStream
+from modules.TTS_module import TTSModule
+
+# TTS = TTSModule()
+# TTS.execute("test_inference", "Hello, this is a test of the Piper text to speech module.")
 
 # Start the camera stream in a background thread
 stream = CameraStream()
