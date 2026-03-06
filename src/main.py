@@ -1,20 +1,31 @@
 import modules.shared_buffer as shared_buffer
 import cv2 as cv
 from modules.StreamingManager import CameraStream
-from modules.TTS_module import TTSModule
+from modules.global_response_module import GlobalResponseModule
 from modules.passive_detector_module import PassiveDetectorModule
+from modules.ai_manager import AI_manager
+from modules.input_event_manager import InputEventManager
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# TTS = TTSModule()
-# TTS.execute("test_inference", "Hello, this is a test of the Piper text to speech module.")
 
 # Start the camera stream in a background thread
 stream = CameraStream()
 stream.start()
 
-passive_detector = PassiveDetectorModule()
+# Load all AI models
+AI_manager.load_all_models()
+
+# Start the Input Event Manager
+input_manager = InputEventManager()
+input_manager.start()
+
+# Start the global response module
+global_response = GlobalResponseModule()
+global_response.start()
+
+# Start the passive detector, passing the global response module instance
+passive_detector = PassiveDetectorModule(global_response)
 passive_detector.start()
 
 try:
@@ -28,6 +39,8 @@ try:
 except KeyboardInterrupt:
     print("Shutting down...")
 finally:
+    input_manager.stop()
     passive_detector.stop()
+    global_response.stop()
     stream.stop()
     cv.destroyAllWindows()

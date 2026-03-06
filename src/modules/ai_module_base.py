@@ -13,6 +13,7 @@ class BaseAIModel(ABC):
         self.section_name = section_name
         self.config = get_config().get(self.section_name, {})
         self.model = None
+        self.logging_enabled = self.config.get("logging_enabled", True)
         self.logger = logging.getLogger(self.__class__.__name__)
         self.cache = {}
 
@@ -60,4 +61,5 @@ class BaseAIModel(ABC):
     def _log_profile(self, start, end, is_stream=False):
         duration = end - start
         stream_tag = "[STREAM]" if is_stream else "[STATIC]"
-        self.logger.info(f"{stream_tag} Latency: {duration:.4f}s")
+        if self.logging_enabled:
+            self.logger.info(f"{stream_tag} Latency: {duration:.4f}s")

@@ -7,8 +7,11 @@ gi.require_version("Gst", "1.0")
 gi.require_version("GstApp", "1.0")  # Required for appsink
 from gi.repository import Gst, GstApp, GLib
 
-# Import our shared buffer instance
 from modules.shared_buffer import video_buffer
+from config.config import get_config
+import cv2
+import os
+import time
 
 class CameraStream(threading.Thread):
     def __init__(self, ip_address="raspberrypi.local"):
@@ -16,6 +19,21 @@ class CameraStream(threading.Thread):
         self.daemon = True  # Ensures thread closes when main program exits
         self.ip_address = ip_address
         self.rtsp_uri = f"rtsp://{self.ip_address}:8554/stream"
+        
+        # Load configurations
+        self.config = get_config().get("input", {})
+        self.simulation_mode = self.config.get("simulation_mode_enabled", False)
+        # self.looping_enabled = self.config.get("simulation_looping_enabled", True)
+        self.recording_enabled = self.config.get("recording_enabled", False)
+        self.video_name = self.config.get("video_name", "test_video.mp4")
+        
+        # Determine the absolute path to the Testing directory
+        self.base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        self.testing_dir = os.path.join(self.base_dir, "Testing")
+        if self.recording_enabled and not os.path.exists(self.testing_dir):
+            os.makedirs(self.testing_dir, exist_ok=True)
+            
+        self.video_writer = None
         
         Gst.init(sys.argv)
         self.loop = GLib.MainLoop()
@@ -26,12 +44,25 @@ class CameraStream(threading.Thread):
         # pipeline description:
         # videoconvert ! video/x-raw,format=BGR converts the hardware decoded frame into OpenCV's BGR format.
         # appsink name=sink drop=true max-buffers=1 ensures we only keep the absolute newest frame.
-        pipeline_str = (
-            f"rtspsrc location={self.rtsp_uri} latency=0 drop-on-latency=true ! "
-            "rtph264depay ! h264parse ! decodebin ! "
-            "videoconvert ! video/x-raw,format=BGR ! "
-            "appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false"
-        )
+        
+        if self.simulation_mode:
+            video_path = os.path.join(self.testing_dir, self.video_name)
+            # Use filesrc and sync=true for simulation playback at normal speed.
+            # Using drop=true max-buffers=1 to align with appsink pattern.
+
+            pipeline_str = (
+                f"multifilesrc location={video_path.replace(chr(92), '/')} ! decodebin ! "
+                "videoconvert ! video/x-raw,format=BGR ! "
+                "appsink name=sink emit-signals=true max-buffers=1 drop=true sync=true"
+            )
+
+        else:
+            pipeline_str = (
+                f"rtspsrc location={self.rtsp_uri} latency=0 drop-on-latency=true ! "
+                "rtph264depay ! h264parse ! decodebin ! "
+                "videoconvert ! video/x-raw,format=BGR ! "
+                "appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false"
+            )
 
         self.pipeline = Gst.parse_launch(pipeline_str)
 
@@ -56,6 +87,9 @@ class CameraStream(threading.Thread):
             self.pipeline.set_state(Gst.State.NULL)
         if self.loop.is_running():
             self.loop.quit()
+        if self.video_writer is not None:
+            self.video_writer.release()
+            self.video_writer = None
 
     def on_message(self, bus, message):
         """Handles pipeline bus messages."""
@@ -96,6 +130,29 @@ class CameraStream(threading.Thread):
             
             # Push the OpenCV frame into our shared PingPongBuffer
             video_buffer.update(frame)
+            
+            if self.recording_enabled:
+                if self.video_writer is None:
+                    timestamp = time.strftime("%Y%m%d_%H%M%S")
+                    filename = os.path.join(self.testing_dir, f"recording_{timestamp}.mp4")
+                    # Try to retrieve fps from caps, otherwise default to 30.
+                    fps = 30.0
+                    if structure.has_field("framerate"):
+                        # 'framerate' is typically a Gst.Fraction
+                        fraction = structure.get_value("framerate")
+                        if fraction.denom > 0:
+                            fps = fraction.num / fraction.denom
+                    # fallback if extraction fails
+                    if fps <= 0:
+                        fps = 30.0
+                    
+                    self.video_writer = cv2.VideoWriter(
+                        filename, 
+                        cv2.VideoWriter_fourcc(*'mp4v'), 
+                        fps, 
+                        (width, height)
+                    )
+                self.video_writer.write(frame)
             
             # Clean up the memory mapping
             buffer.unmap(map_info)
