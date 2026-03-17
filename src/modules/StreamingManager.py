@@ -60,7 +60,7 @@ class CameraStream(threading.Thread):
             pipeline_str = (
                 f"rtspsrc location={self.rtsp_uri} latency=0 drop-on-latency=true ! "
                 "rtph264depay ! h264parse ! decodebin ! "
-                "videoconvert ! video/x-raw,format=BGR ! "
+                "videoconvert ! videoflip method=counterclockwise ! video/x-raw,format=BGR ! "
                 "appsink name=sink emit-signals=true max-buffers=1 drop=true sync=false"
             )
 

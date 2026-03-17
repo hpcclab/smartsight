@@ -19,7 +19,26 @@ class PassiveDetectorModule:
         # Dictionary mapping object_name -> {"count": int, "timestamp": float}
         self.recent_detections = {}
         self.config = get_config()
-        self.detection_cooldown = self.config.get("passive_detection", {}).get("detection_cooldown", 5) # seconds
+        self.passive_config = self.config.get("passive_detection", {})
+        self.detection_cooldown = self.passive_config.get("detection_cooldown", 5) # seconds
+        self.object_detection_rate = self.passive_config.get("object_detection_max_rate", 1.0)
+        self.facial_recognition_rate = self.passive_config.get("facial_recognition_max_rate", 1.0)
+        self.text_detection_rate = self.passive_config.get("text_detection_max_rate", 1.0)
+
+        from modules.ocr_module import OCRModule
+        from modules.facial_recognition_ai_module import FacialRecognitionAIModule
+        
+        self.main_tasks = [
+            {"name": "object_detection", "module_class": ObjectDetectionAIModule, "max_rate": self.object_detection_rate, "func": self._run_object_detection},
+            {"name": "facial_recognition", "module_class": FacialRecognitionAIModule, "max_rate": self.facial_recognition_rate, "func": self._run_facial_recognition},
+            {"name": "text_detection", "module_class": OCRModule, "max_rate": self.text_detection_rate, "func": self._run_text_detection}
+        ]
+        self.hold_list = []
+        self.last_completed_time = {
+            "object_detection": 0.0,
+            "facial_recognition": 0.0,
+            "text_detection": 0.0
+        }
 
     def start(self):
         """Starts the passive detection thread."""
@@ -40,21 +59,68 @@ class PassiveDetectorModule:
     def _detection_loop(self):
         """Continuous loop to run inference on retrieved frames."""
         while self.running:
+            if not self.main_tasks or len(self.main_tasks) == 0:
+                time.sleep(0.1)
+                if self.hold_list:
+                    for task in self.hold_list:
+                        
+                        time_left = (self.last_completed_time[task["name"]] + task["max_rate"]) - time.time()
+                        print(f"task name: {task['name']}, time left: {time_left}")
+                        if time_left <= 0:
+                            self.main_tasks.append(task)
+                            self.hold_list.remove(task)
+                continue
+
+            current_task = self.main_tasks.pop(0)
+            task_name = current_task["name"]
+            
+            # Check if the task is within its max_rate, otherwise shelve it and continue to next task for now.
+            if time.time() - self.last_completed_time[task_name] < current_task["max_rate"]:
+                self.hold_list.append(current_task)
+                continue
+                
             frame = video_buffer.retrieve_frame()
             if frame is not None:
-                # pass 'detect' as the input_key to the execute method
                 try:
-                    result = AI_manager.execute_module(lambda m: isinstance(m, ObjectDetectionAIModule), "detect", frame)
-                    if result and result not in ("No objects detected.", "An unexpected error occurred during object detection."):
-                        filtered_result = self._filter_recent_detections(result)
-                        if filtered_result:
-                            self.logger.info(f"Passive Detection Found: {filtered_result}")
-                            self.global_response.add_message(f"{filtered_result}", priority=50)
+                    print(f"Running {task_name} on frame")
+                    current_task["func"](frame, current_task["module_class"])
                 except Exception as e:
-                    self.logger.error(f"Detection loop error: {e}")
+                    self.logger.error(f"Detection loop error for {task_name}: {e}")
+                    
+            self.last_completed_time[task_name] = time.time()
+            self.main_tasks.append(current_task)
+            
+            if self.hold_list:
+                self.main_tasks = self.hold_list + self.main_tasks
+                self.hold_list = []
             
             # Small sleep to prevent tight looping when inference is fast or frames are missing
-            time.sleep(0.01)
+            time.sleep(0.1)
+
+    def _run_object_detection(self, frame, module_class):
+        result = AI_manager.execute_module(lambda m: isinstance(m, module_class), "detect", frame)
+        if result and result not in ("No objects detected.", "An unexpected error occurred during object detection."):
+            filtered_result = self._filter_recent_detections(result, "object")
+            if filtered_result:
+                self.logger.info(f"Passive Object Detection Found: {filtered_result}")
+                self.global_response.add_message(f"{filtered_result}", priority=50)
+
+    def _run_facial_recognition(self, frame, module_class):
+        result = AI_manager.execute_module(lambda m: isinstance(m, module_class), "detect", frame)
+        if result and result not in ("No faces detected.", "An error occurred during facial recognition.", "Facial recognition models are not loaded.", "No image data.", "No one was recognized."):
+            filtered_result = self._filter_recent_detections(result.replace("Detected ", ""), "face")
+            if filtered_result:
+                self.logger.info(f"Passive Face Detection Found: {filtered_result}")
+                self.global_response.add_message(f"{filtered_result}", priority=50)
+
+    def _run_text_detection(self, frame, module_class):
+        result = AI_manager.execute_module(lambda m: isinstance(m, module_class), "detect", frame)
+        if result and result != "OCR Module Placeholder":
+            # Assuming OCR returns a string of detected text, we pass it raw for now or format as needed
+            filtered_result = self._filter_recent_detections(result, "text")
+            if filtered_result:
+                self.logger.info(f"Passive Text Detection Found: {filtered_result}")
+                self.global_response.add_message(f"Detected Text: {filtered_result}", priority=50)
 
     def _parse_detections(self, result_str):
         """Parses a string like '2 persons, 1 dog' into a dictionary format."""
@@ -93,47 +159,52 @@ class PassiveDetectorModule:
                    parts.append(f"1 {label}")
          return ", ".join(parts)
 
-    def _filter_recent_detections(self, result_str):
+    def _filter_recent_detections(self, result_str, detection_type="object"):
         """
         Implements the logic:
-        1. Parse input
-        2. Cull out Old detections
-        3. Find New items
-        4. Find increased count items
-        5. Update Timestamps, and add new items
-        6. Return filtered string to Send to Response Manager
+        Parse input, cull out old detections, find new items, find increased count items, update timestamps, and add new items, and return filtered string to Send to Response Manager
         """
         current_time = time.time()
         
-        # 1. Cull out Old detections
+        # We namespace the detections by type to prevent overlap
+        
+        # Cull out old detections
         keys_to_remove = []
         for label, data in self.recent_detections.items():
-            if current_time - data["timestamp"] >= self.detection_cooldown:
+            if data.get("type") == detection_type and current_time - data["timestamp"] >= self.detection_cooldown:
                 keys_to_remove.append(label)
+                # print(f"Removing old detection: {label}")
         for label in keys_to_remove:
             del self.recent_detections[label]
 
         # Parse current detections
-        current_detections = self._parse_detections(result_str)
+        if detection_type == "object" or detection_type == "face":
+            current_detections = self._parse_detections(result_str)
+        else:
+            # Handle text generically, maybe just counting instances
+            current_detections = {result_str.strip(): 1} if result_str.strip() else {}
         
         report_detections = {}
 
         for label, count in current_detections.items():
-            # 2. Find New items
-            if label not in self.recent_detections:
+            namespaced_label = f"{detection_type}_{label}"
+            # Find New items
+            if namespaced_label not in self.recent_detections:
                 report_detections[label] = count
-                self.recent_detections[label] = {"count": count, "timestamp": current_time}
+                self.recent_detections[namespaced_label] = {"count": count, "timestamp": current_time, "type": detection_type}
             else:
-                # 3. Find increased count items
-                prev_count = self.recent_detections[label]["count"]
+                # Find increased count items
+                prev_count = self.recent_detections[namespaced_label]["count"]
                 if count > prev_count:
-                    # Report only the difference or the new total? Let's report the new total count seen
+                    # Report the new total count seen
                     report_detections[label] = count
-                    
-                # 4. Update Timestamps, and counts
-                self.recent_detections[label]["timestamp"] = current_time
-                self.recent_detections[label]["count"] = count
+                    # print(f"Increased count for {label}: {count}")
+                # Update Timestamps, and counts
+                self.recent_detections[namespaced_label]["timestamp"] = current_time
+                self.recent_detections[namespaced_label]["count"] = count
 
         if report_detections:
-             return self._format_detections(report_detections)
+            if detection_type == "text":
+                return ", ".join(report_detections.keys())
+            return self._format_detections(report_detections)
         return ""

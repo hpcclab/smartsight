@@ -10,3 +10,4 @@ config
 /.venv
 /models
 /junk
+/checkpoints

@@ -2,8 +2,10 @@ import logging
 from .TTS_module import TTSModule
 from .object_detection_ai_module import ObjectDetectionAIModule
 from .facial_recognition_ai_module import FacialRecognitionAIModule
+from .ocr_module import OCRModule
 from .speech_to_text_module import SpeechToTextModule
 from .edge_mllm_module import EdgeMLLMModule
+from .semantic_analyzer_setfit_module import SemanticAnalyzerSetfitModule
 
 class AIManager:
     """
@@ -19,8 +21,10 @@ class AIManager:
             TTSModule(),
             ObjectDetectionAIModule(),
             FacialRecognitionAIModule(),
+            OCRModule(),
             SpeechToTextModule(),
-            EdgeMLLMModule()
+            EdgeMLLMModule(),
+            SemanticAnalyzerSetfitModule()
         ]
 
     def get_module(self, condition):
