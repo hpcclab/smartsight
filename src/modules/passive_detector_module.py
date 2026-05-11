@@ -63,9 +63,7 @@ class PassiveDetectorModule:
                 time.sleep(0.1)
                 if self.hold_list:
                     for task in self.hold_list:
-                        
                         time_left = (self.last_completed_time[task["name"]] + task["max_rate"]) - time.time()
-                        print(f"task name: {task['name']}, time left: {time_left}")
                         if time_left <= 0:
                             self.main_tasks.append(task)
                             self.hold_list.remove(task)
@@ -114,13 +112,12 @@ class PassiveDetectorModule:
                 self.global_response.add_message(f"{filtered_result}", priority=50)
 
     def _run_text_detection(self, frame, module_class):
-        result = AI_manager.execute_module(lambda m: isinstance(m, module_class), "detect", frame)
-        if result and result != "OCR Module Placeholder":
-            # Assuming OCR returns a string of detected text, we pass it raw for now or format as needed
+        result = AI_manager.execute_module(lambda m: isinstance(m, module_class), "detect", frame, simple_text_detection=True)
+        if result and result != "No text detected.":
             filtered_result = self._filter_recent_detections(result, "text")
             if filtered_result:
                 self.logger.info(f"Passive Text Detection Found: {filtered_result}")
-                self.global_response.add_message(f"Detected Text: {filtered_result}", priority=50)
+                self.global_response.add_message(f"{filtered_result}", priority=50)
 
     def _parse_detections(self, result_str):
         """Parses a string like '2 persons, 1 dog' into a dictionary format."""
