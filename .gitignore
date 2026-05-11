@@ -3,7 +3,6 @@
 /venv
 image.jpg
 results.txt
-config
 /temp
 *.pyc
 */__pycache__
@@ -11,3 +10,4 @@ config
 /models
 /junk
 /checkpoints
+/src/config/configSensitive.yaml

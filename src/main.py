@@ -3,6 +3,7 @@ import cv2 as cv
 from modules.StreamingManager import CameraStream
 from modules.global_response_module import GlobalResponseModule
 from modules.passive_detector_module import PassiveDetectorModule
+from modules.active_module import ActiveModule
 from modules.ai_manager import AI_manager
 from modules.input_event_manager import InputEventManager
 import logging
@@ -16,10 +17,6 @@ stream.start()
 # Load all AI models
 AI_manager.load_all_models()
 
-# Start the Input Event Manager
-input_manager = InputEventManager()
-input_manager.start()
-
 # Start the global response module
 global_response = GlobalResponseModule()
 global_response.start()
@@ -27,6 +24,13 @@ global_response.start()
 # Start the passive detector, passing the global response module instance
 passive_detector = PassiveDetectorModule(global_response)
 passive_detector.start()
+
+# Start the active module
+active_module = ActiveModule(global_response)
+
+# Start the Input Event Manager
+input_manager = InputEventManager(active_module=active_module)
+input_manager.start()
 
 try:
     while True:

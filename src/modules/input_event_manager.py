@@ -7,6 +7,7 @@ from modules.recording_manager import recording_manager_instance
 from modules.ai_manager import AI_manager
 # from modules.active_module_manager import active_module_manager_instance
 from modules.speech_to_text_module import SpeechToTextModule
+from modules.speech_to_text_module import SpeechToTextModule
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +16,14 @@ class InputEventManager:
     Manager responsible for orchestrating user input events (e.g., voice commands).
     """
 
-    def __init__(self, temp_dir: str = "temp"):
+    def __init__(self, active_module, temp_dir: str = "temp"):
         self.temp_dir = temp_dir
         if not os.path.exists(self.temp_dir):
             os.makedirs(self.temp_dir)
             
         self._stop_event = threading.Event()
         self._listening_thread = None
+        self.active_module = active_module
 
     def start(self):
         """Starts the background listening thread."""
@@ -42,7 +44,10 @@ class InputEventManager:
         logger.info("Listening for space bar press to trigger recording...")
         while not self._stop_event.is_set():
             if keyboard.is_pressed('space'):
-                self.process_voice_command()
+                transcribed_text = self.process_voice_command()
+                if transcribed_text and transcribed_text.strip():
+                    response = self.active_module.ProcessRequest(transcribed_text)
+                    logger.info(f"Active Module Response: {response}")
                 # Wait for the spacebar to be released before continuing
                 while keyboard.is_pressed('space') and not self._stop_event.is_set():
                     time.sleep(0.1)

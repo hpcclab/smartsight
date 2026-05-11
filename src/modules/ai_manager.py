@@ -6,6 +6,7 @@ from .ocr_module import OCRModule
 from .speech_to_text_module import SpeechToTextModule
 from .edge_mllm_module import EdgeMLLMModule
 from .semantic_analyzer_setfit_module import SemanticAnalyzerSetfitModule
+from .API_mllm_module import APIMLLMModule
 
 class AIManager:
     """
@@ -24,7 +25,8 @@ class AIManager:
             OCRModule(),
             SpeechToTextModule(),
             EdgeMLLMModule(),
-            SemanticAnalyzerSetfitModule()
+            SemanticAnalyzerSetfitModule(),
+            APIMLLMModule()
         ]
 
     def get_module(self, condition):

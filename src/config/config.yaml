@@ -1,0 +1,51 @@
+ollama_llm:
+  model: "gemma3:4b"
+  timeout: 30
+
+yolo_vision:
+  model_path: "models/yolov8s.pt"
+  min_conf: 0.7
+  logging_enabled: False
+
+openrouter_api:
+  model: "google/gemma-4-31b-it:free"
+
+face_recognition:
+  encodings_path: "models/facial_recognition/encodings.pickle"
+  cascade_path: "models/facial_recognition/haarcascade_frontalface_default.xml"
+  tolerance: 0.5
+
+piper_tts:
+  model_path: "models/piper/en_US-lessac-low.onnx"
+  config_path: "models/piper/en_US-lessac-low.onnx.json"
+  use_cuda: False
+  sample_rate: 16000
+  temp_path: "temp/piper"
+
+passive_detection:
+  detection_cooldown: 5 # number of seconds since last detection that object can be announced again
+  object_detection_max_rate: 1.0
+  facial_recognition_max_rate: 1.0
+  text_detection_max_rate: 1.0
+
+recording:
+  sample_rate: 16000
+  channels: 1
+  chunk_size: 1024
+
+speech_to_text:
+  model_size: "base"  # Options: tiny, base, small, medium, large
+  use_fp16: False
+
+input:
+  simulation_mode_enabled: False
+  # simulation_looping_enabled: True
+  recording_enabled: False
+  video_name: "recording_20260306_102521.mp4"
+
+semantic_analyzer:
+  urgency_model_path: "models/setfit_models/urgency_model"
+  moe_model_path: "models/setfit_models/moe_model"
+  urgency_threshold: 0.5
+  urgency_setfit_train_dataset: training/setfit/urgentTrainSetFit.json
+  moe_setfit_train_dataset: training/setfit/Moe_train_Setfit_v5.json
