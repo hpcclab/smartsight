@@ -7,7 +7,6 @@ results.txt
 *.pyc
 */__pycache__
 /.venv
-/models
 /junk
 /checkpoints
 /src/config/configSensitive.yaml
