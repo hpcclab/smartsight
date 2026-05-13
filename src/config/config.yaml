@@ -38,7 +38,7 @@ speech_to_text:
   use_fp16: False
 
 input:
-  simulation_mode_enabled: False
+  simulation_mode_enabled: True
   # simulation_looping_enabled: True
   recording_enabled: False
   video_name: "recording_20260306_102521.mp4"
