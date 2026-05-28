@@ -1,19 +1,11 @@
 import sys
 import os
 
-# --- Fix for circular import ---
-# When running `python Testing/pytest.py`, python adds the `Testing` directory to `sys.path`.
-# This causes `import pytest` to try and import this file instead of the actual pytest package.
-# We remove it from the path to ensure we import the real pytest module.
-_script_dir = os.path.dirname(os.path.abspath(__file__))
-if sys.path and sys.path[0] in (_script_dir, ''):
-    sys.path.pop(0)
-
 import pytest
 import pkgutil
 import importlib
 import numpy as np
-
+_script_dir = os.path.dirname(__file__)
 # Add project root to python path so src modules can be imported
 _project_root = os.path.abspath(os.path.join(_script_dir, '..'))
 if _project_root not in sys.path:
