@@ -18,10 +18,23 @@ class ActiveModule:
             input_data=text_input,
             use_image=True,
             model=model_name,
-            stream=False
+            stream=True
         )
-        self.global_response_module.add_message(response, priority=10)
-        if response:
-            return response
+        
+        # Check if the response is a streaming generator/iterator
+        if response and not isinstance(response, str) and (hasattr(response, "__next__") or hasattr(response, "__iter__")):
+            token_list = []
+            self.global_response_module.add_message(token_list, priority=10)
+            full_response = []
+            for token in response:
+                token_list.append(token)
+                full_response.append(token)
+            token_list.append(None)  # Sentinel to signal completion
+            return "".join(full_response)
         else:
-            return "Failed to get response from the model."
+            self.global_response_module.add_message(response or "Failed to get response.", priority=10)
+            if response:
+                return response
+            else:
+                return "Failed to get response from the model."
+
