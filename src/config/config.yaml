@@ -8,7 +8,7 @@ yolo_vision:
   logging_enabled: False
 
 openrouter_api:
-  model: "google/gemma-4-31b-it:free"
+  model: "google/gemma-4-26b-a4b-it"
 
 face_recognition:
   encodings_path: "models/facial_recognition/encodings.pickle"

@@ -1,24 +1,27 @@
 from .ai_manager import AI_manager
+from .edge_cloud_merger import EdgeCloudMerger
 from config.config import get_config
 
 class ActiveModule:
     def __init__(self, global_response_module):
-        self.config = get_config().get("openrouter_api", {})
+        self.config_cloud = get_config().get("openrouter_api", {})
+        self.config_edge = get_config().get("ollama_llm", {})
         self.global_response_module = global_response_module
+        self.merger = EdgeCloudMerger()
             
-    def ProcessRequest(self, text_input: str):
+    def ProcessRequest(self, text_input: str, frame=None):
         """
-        Process text input by calling the API MLLM through the AI manager
-        with image input enabled.
+        Process text input by executing Edge-Cloud fusion (Algorithm 1) via the EdgeCloudMerger.
         """
-        model_name = self.config.get("model", "gemma3:12b")
-        response = AI_manager.execute_module(
-            lambda m: m.__class__.__name__ == "APIMLLMModule",
-            input_key="active_request",
-            input_data=text_input,
+        cloud_model = self.config_cloud.get("model")
+        edge_model = self.config_edge.get("model")
+
+        response = self.merger.run_inference(
+            text_input=text_input,
             use_image=True,
-            model=model_name,
-            stream=True
+            cloud_model=cloud_model,
+            edge_model=edge_model,
+            frame=frame
         )
         
         # Check if the response is a streaming generator/iterator
@@ -37,4 +40,5 @@ class ActiveModule:
                 return response
             else:
                 return "Failed to get response from the model."
+
 
