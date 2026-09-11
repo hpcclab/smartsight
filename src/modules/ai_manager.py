@@ -1,6 +1,7 @@
 import logging
 from .TTS_module import TTSModule
 from .object_detection_ai_module import ObjectDetectionAIModule
+from .dollar_detection_ai_module import DollarDetectionAIModule
 from .facial_recognition_ai_module import FacialRecognitionAIModule
 from .ocr_module import OCRModule
 from .speech_to_text_module import SpeechToTextModule
@@ -21,6 +22,7 @@ class AIManager:
         self.modules = [
             TTSModule(),
             ObjectDetectionAIModule(),
+            DollarDetectionAIModule(),
             FacialRecognitionAIModule(),
             OCRModule(),
             SpeechToTextModule(),
