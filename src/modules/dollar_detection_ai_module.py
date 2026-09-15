@@ -6,20 +6,6 @@ from collections import Counter
 from .ai_module_base import BaseAIModel
 
 class DollarDetectionAIModule(BaseAIModel):
-    """
-    Detects US dollar bills and reports the denominations in view.
-
-    Two backends, selected by the "backend" config key:
-      "roboflow" - the hosted serverless model (default, noticeably more accurate)
-      "local"    - the bundled YOLO weights, for offline / no-API-key operation
-
-    The hosted model returns numeric class names rather than readable labels.
-    ROBOFLOW_CLASS_MAP was recovered empirically by matching its predictions
-    against the labelled test set; note that "fifty-back" comes back as "20",
-    not "0". Both backends collapse front/back to a denomination, since only
-    the value matters for the announcement and it makes the common front/back
-    confusion harmless.
-    """
 
     DENOMINATIONS = {
         "one": 1,
@@ -65,22 +51,17 @@ class DollarDetectionAIModule(BaseAIModel):
             self.model = YOLO(model_path)
             return
 
-        # Roboflow: nothing to load, but fail loudly now rather than per-frame
         if not self._api_key():
             self.logger.error(
                 "No Roboflow API key. Set the ROBOFLOW_API_KEY environment variable "
                 "or add dollar_detection.roboflow_api_key to configSensitive.yaml."
             )
         self._session = requests.Session()
-        # Sentinel so BaseAIModel.execute() does not call load_model() every frame
         self.model = self._session
         self.logger.info(f"Dollar detection using hosted model {self.config.get('roboflow_model_id', 'dollar-bill-a5fkm/1')}")
 
     def _detect_roboflow(self, frame) -> list:
-        """POSTs the frame to the serverless API.
-
-        Returns a list of (denomination, confidence, (x1, y1, x2, y2)).
-        """
+       
         api_key = self._api_key()
         if not api_key:
             raise RuntimeError("Roboflow API key is not configured.")
@@ -148,23 +129,37 @@ class DollarDetectionAIModule(BaseAIModel):
     def detect_boxes(self, frame) -> list:
         """Raw detections as (denomination, confidence, (x1, y1, x2, y2)).
 
-        Exposed for visualisation and debugging; run_inference() is the normal
-        entry point and returns the spoken-form summary.
+        run_inference() is the announcement path; this is for tooling that needs
+        the boxes, e.g. Testing/dollarDetectionTest.py drawing an overlay.
         """
         if self.model is None:
             self.load_model()
         return self._detect_local(frame) if self.backend == "local" else self._detect_roboflow(frame)
 
+    def summarise(self, detections) -> str:
+        """Phrases detections the way object detection does: singular labels,
+        count only when > 1, largest denomination first.
+
+        The passive detector parses this back apart and re-pluralizes, so the
+        labels stay singular here (see PassiveDetectorModule._parse_detections).
+        """
+        bill_counts = Counter(d[0] for d in detections)
+        if len(bill_counts) < 1:
+            return self.NO_DETECTION
+
+        ordered = sorted(bill_counts.items(),
+                         key=lambda item: self.DENOMINATIONS[item[0]], reverse=True)
+
+        output_parts = []
+        for denomination, count in ordered:
+            label = f"{denomination} dollar bill"
+            output_parts.append(f"{count} {label}" if count > 1 else label)
+        return ", ".join(output_parts)
+
     def run_inference(self, input_data, **kwargs) -> str:
         """
-        Detects dollar bills in a frame or image path.
-
-        kwargs:
-            include_total (bool): append the summed value. Left off for passive
-                                  announcements so the result stays parseable by
-                                  PassiveDetectorModule's detection filter.
-
-        Returns a spoken-form summary, e.g. "2 twenty dollar bills, 1 five dollar bill".
+        Runs dollar bill detection on the input image path or frame.
+        Returns a string summary of detected bills.
         """
         try:
             if isinstance(input_data, str):
@@ -181,27 +176,7 @@ class DollarDetectionAIModule(BaseAIModel):
 
             detections = (self._detect_local(frame) if self.backend == "local"
                           else self._detect_roboflow(frame))
-            bill_counts = Counter(d[0] for d in detections)
-
-            if not bill_counts:
-                return self.NO_DETECTION
-
-            # Announce the largest denomination first
-            ordered = sorted(bill_counts.items(),
-                             key=lambda item: self.DENOMINATIONS[item[0]], reverse=True)
-
-            output_parts = []
-            for denomination, count in ordered:
-                plural = "bills" if count > 1 else "bill"
-                output_parts.append(f"{count} {denomination} dollar {plural}")
-
-            output = ", ".join(output_parts)
-
-            if kwargs.get("include_total", False):
-                total = sum(self.DENOMINATIONS[d] * c for d, c in bill_counts.items())
-                output = f"{output}, totalling {total} dollar{'' if total == 1 else 's'}"
-
-            return output
+            return self.summarise(detections)
 
         except requests.Timeout:
             self.logger.error("Roboflow request timed out.")
