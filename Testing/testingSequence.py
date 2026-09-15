@@ -107,6 +107,44 @@ def test_object_detection():
     except Exception as e:
         pytest.fail(f"Object detection execution failed: {e}")
 
+# ---------------------------------------------------------
+# Test 4: Dollar Detection Output Format
+# ---------------------------------------------------------
+def test_dollar_detection_output_format():
+    """
+    Dollar detection must speak the same dialect as object detection:
+    singular labels, count prefix only when more than one, comma-joined,
+    so PassiveDetectorModule._parse_detections can read it back.
+    """
+    try:
+        from src.modules.dollar_detection_ai_module import DollarDetectionAIModule
+    except ImportError as e:
+        pytest.skip(f"Could not import DollarDetectionAIModule: {e}")
+
+    detector = DollarDetectionAIModule()
+    detector.model = object()  # skip load_model; we stub the backend below
+    detector.backend = "roboflow"
+    frame = np.zeros((64, 64, 3), dtype=np.uint8)
+
+    # summarise() is the shared formatter: run_inference and the box overlay in
+    # Testing/dollarDetectionTest.py must never phrase things differently
+    assert detector.summarise([]) == DollarDetectionAIModule.NO_DETECTION
+
+    detector._detect_roboflow = lambda f: []
+    assert detector.run_inference(frame) == DollarDetectionAIModule.NO_DETECTION
+
+    detector._detect_roboflow = lambda f: [("one", 0.9, (0, 0, 1, 1))]
+    assert detector.run_inference(frame) == "one dollar bill"
+
+    detector._detect_roboflow = lambda f: [
+        ("one", 0.9, (0, 0, 1, 1)),
+        ("twenty", 0.9, (0, 0, 1, 1)),
+        ("twenty", 0.9, (0, 0, 1, 1)),
+    ]
+    # Largest denomination first, count only on the plural entry
+    assert detector.run_inference(frame) == "2 twenty dollar bill, one dollar bill"
+
+
 if __name__ == "__main__":
     # If the user runs `python Testing/pytest.py`, execute pytest on this file automatically
     sys.exit(pytest.main(["-v", __file__]))

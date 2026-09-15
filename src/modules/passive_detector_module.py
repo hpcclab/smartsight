@@ -3,6 +3,7 @@ import time
 import logging
 from modules.shared_buffer import video_buffer
 from modules.object_detection_ai_module import ObjectDetectionAIModule
+from modules.dollar_detection_ai_module import DollarDetectionAIModule
 from modules.ai_manager import AI_manager
 from config.config import get_config
 
@@ -24,21 +25,30 @@ class PassiveDetectorModule:
         self.object_detection_rate = self.passive_config.get("object_detection_max_rate", 1.0)
         self.facial_recognition_rate = self.passive_config.get("facial_recognition_max_rate", 1.0)
         self.text_detection_rate = self.passive_config.get("text_detection_max_rate", 1.0)
+        self.dollar_detection_enabled = self.passive_config.get("dollar_detection_enabled", False)
+        self.dollar_detection_rate = self.passive_config.get("dollar_detection_max_rate", 1.0)
 
         from modules.ocr_module import OCRModule
         from modules.facial_recognition_ai_module import FacialRecognitionAIModule
-        
+
         self.main_tasks = [
             {"name": "object_detection", "module_class": ObjectDetectionAIModule, "max_rate": self.object_detection_rate, "func": self._run_object_detection},
             {"name": "facial_recognition", "module_class": FacialRecognitionAIModule, "max_rate": self.facial_recognition_rate, "func": self._run_facial_recognition},
             {"name": "text_detection", "module_class": OCRModule, "max_rate": self.text_detection_rate, "func": self._run_text_detection}
         ]
-        self.hold_list = []
         self.last_completed_time = {
             "object_detection": 0.0,
             "facial_recognition": 0.0,
             "text_detection": 0.0
         }
+
+        if self.dollar_detection_enabled:
+            self.main_tasks.append(
+                {"name": "dollar_detection", "module_class": DollarDetectionAIModule, "max_rate": self.dollar_detection_rate, "func": self._run_dollar_detection}
+            )
+            self.last_completed_time["dollar_detection"] = 0.0
+
+        self.hold_list = []
 
     def start(self):
         """Starts the passive detection thread."""
@@ -111,6 +121,14 @@ class PassiveDetectorModule:
                 self.logger.info(f"Passive Face Detection Found: {filtered_result}")
                 self.global_response.add_message(f"{filtered_result}", priority=50)
 
+    def _run_dollar_detection(self, frame, module_class):
+        result = AI_manager.execute_module(lambda m: isinstance(m, module_class), "detect", frame)
+        if result and result not in ("No dollar bills detected.", "An unexpected error occurred during dollar detection."):
+            filtered_result = self._filter_recent_detections(result, "dollar")
+            if filtered_result:
+                self.logger.info(f"Passive Dollar Detection Found: {filtered_result}")
+                self.global_response.add_message(f"{filtered_result}", priority=50)
+
     def _run_text_detection(self, frame, module_class):
         result = AI_manager.execute_module(lambda m: isinstance(m, module_class), "detect", frame, simple_text_detection=True)
         if result and result != "No text detected.":
@@ -175,7 +193,7 @@ class PassiveDetectorModule:
             del self.recent_detections[label]
 
         # Parse current detections
-        if detection_type == "object" or detection_type == "face":
+        if detection_type in ("object", "face", "dollar"):
             current_detections = self._parse_detections(result_str)
         else:
             # Handle text generically, maybe just counting instances

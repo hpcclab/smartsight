@@ -1,0 +1,1198 @@
+{
+  "version": 1,
+  "generatedAt": "2026-09-02T19:46:09.196Z",
+  "rootPath": "c:\\Users\\Crack\\OneDrive\\Documents\\CodeDev\\GitHub\\smartsight",
+  "summary": {
+    "totalFiles": 34,
+    "totalEdges": 24,
+    "totalLines": 2400,
+    "languages": [
+      "py"
+    ],
+    "flowStages": {
+      "start": 2,
+      "main": 22,
+      "core": 5,
+      "helpers": 5
+    }
+  },
+  "files": [
+    {
+      "path": "run.py",
+      "fileType": "module",
+      "stage": "start",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 5,
+      "size": 69,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 1
+      },
+      "crossStageLinks": 0,
+      "impactScore": 1,
+      "isDeadCode": false,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 4,
+      "hotspotLevel": "low",
+      "summary": "Entry or startup logic. Type: module",
+      "functions": [],
+      "classes": [],
+      "exports": [],
+      "imports": [
+        "src/main.py"
+      ],
+      "usedBy": []
+    },
+    {
+      "path": "src/config/config.py",
+      "fileType": "config",
+      "stage": "helpers",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 46,
+      "size": 1472,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 4
+      },
+      "crossStageLinks": 2,
+      "impactScore": 4,
+      "isDeadCode": false,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 10,
+      "hotspotLevel": "low",
+      "summary": "Support or shared utility code. Functions: _load_config, get_config",
+      "functions": [
+        "_load_config",
+        "get_config"
+      ],
+      "classes": [],
+      "exports": [],
+      "imports": [],
+      "usedBy": [
+        "training/setfit/train_setfit_MoE.py",
+        "training/setfit/train_setfit_urgency.py"
+      ]
+    },
+    {
+      "path": "src/config/__init__.py",
+      "fileType": "module",
+      "stage": "helpers",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 1,
+      "size": 0,
+      "collaboration": {
+        "status": "isolated",
+        "impact": "solo",
+        "summary": "No local collaboration links yet.",
+        "score": 0
+      },
+      "crossStageLinks": 0,
+      "impactScore": 0,
+      "isDeadCode": true,
+      "isOrphan": true,
+      "isCircular": false,
+      "hotspotScore": 1,
+      "hotspotLevel": "low",
+      "summary": "Support or shared utility code. Type: module",
+      "functions": [],
+      "classes": [],
+      "exports": [],
+      "imports": [],
+      "usedBy": []
+    },
+    {
+      "path": "src/main.py",
+      "fileType": "entry",
+      "stage": "start",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 51,
+      "size": 1641,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 1
+      },
+      "crossStageLinks": 0,
+      "impactScore": 1,
+      "isDeadCode": false,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 7,
+      "hotspotLevel": "low",
+      "summary": "Entry or startup logic. Type: entry",
+      "functions": [],
+      "classes": [],
+      "exports": [],
+      "imports": [],
+      "usedBy": [
+        "run.py"
+      ]
+    },
+    {
+      "path": "src/modules/active_module.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 28,
+      "size": 1013,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 2
+      },
+      "crossStageLinks": 1,
+      "impactScore": 2,
+      "isDeadCode": true,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 5,
+      "hotspotLevel": "low",
+      "summary": "Main orchestration code. Classes: ActiveModule. Functions: __init__, ProcessRequest",
+      "functions": [
+        "__init__",
+        "ProcessRequest"
+      ],
+      "classes": [
+        "ActiveModule"
+      ],
+      "exports": [],
+      "imports": [
+        "src/modules/ai_manager.py"
+      ],
+      "usedBy": []
+    },
+    {
+      "path": "src/modules/ai_manager.py",
+      "fileType": "module",
+      "stage": "core",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 66,
+      "size": 2531,
+      "collaboration": {
+        "status": "collaborative",
+        "impact": "bridge",
+        "summary": "Connects multiple parts of the code flow.",
+        "score": 27
+      },
+      "crossStageLinks": 9,
+      "impactScore": 27,
+      "isDeadCode": false,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 23,
+      "hotspotLevel": "medium",
+      "summary": "Core business logic. Classes: AIManager. Functions: __init__, get_module, execute_module, load_all_models",
+      "functions": [
+        "__init__",
+        "get_module",
+        "execute_module",
+        "load_all_models"
+      ],
+      "classes": [
+        "AIManager"
+      ],
+      "exports": [],
+      "imports": [
+        "src/modules/TTS_module.py",
+        "src/modules/object_detection_ai_module.py",
+        "src/modules/facial_recognition_ai_module.py",
+        "src/modules/ocr_module.py",
+        "src/modules/speech_to_text_module.py",
+        "src/modules/edge_mllm_module.py",
+        "src/modules/semantic_analyzer_setfit_module.py",
+        "src/modules/API_mllm_module.py"
+      ],
+      "usedBy": [
+        "src/modules/active_module.py"
+      ]
+    },
+    {
+      "path": "src/modules/ai_module_base.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 65,
+      "size": 2474,
+      "collaboration": {
+        "status": "collaborative",
+        "impact": "hub",
+        "summary": "A shared dependency reused by many files.",
+        "score": 8
+      },
+      "crossStageLinks": 0,
+      "impactScore": 8,
+      "isDeadCode": false,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 28,
+      "hotspotLevel": "medium",
+      "summary": "Main orchestration code. Classes: BaseAIModel. Functions: __init__, load_model, run_inference, execute",
+      "functions": [
+        "__init__",
+        "load_model",
+        "run_inference",
+        "execute",
+        "_stream_wrapper",
+        "_log_profile"
+      ],
+      "classes": [
+        "BaseAIModel"
+      ],
+      "exports": [],
+      "imports": [],
+      "usedBy": [
+        "src/modules/API_mllm_module.py",
+        "src/modules/edge_mllm_module.py",
+        "src/modules/facial_recognition_ai_module.py",
+        "src/modules/object_detection_ai_module.py",
+        "src/modules/ocr_module.py",
+        "src/modules/semantic_analyzer_setfit_module.py",
+        "src/modules/speech_to_text_module.py",
+        "src/modules/TTS_module.py"
+      ]
+    },
+    {
+      "path": "src/modules/API_mllm_module.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 82,
+      "size": 3185,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 5
+      },
+      "crossStageLinks": 2,
+      "impactScore": 5,
+      "isDeadCode": false,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 11,
+      "hotspotLevel": "medium",
+      "summary": "Main orchestration code. Classes: APIMLLMModule. Functions: __init__, load_model, run_inference, generate",
+      "functions": [
+        "__init__",
+        "load_model",
+        "run_inference",
+        "generate"
+      ],
+      "classes": [
+        "APIMLLMModule"
+      ],
+      "exports": [],
+      "imports": [
+        "src/modules/ai_module_base.py",
+        "src/modules/shared_buffer.py"
+      ],
+      "usedBy": [
+        "src/modules/ai_manager.py"
+      ]
+    },
+    {
+      "path": "src/modules/edge_mllm_module.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 80,
+      "size": 3116,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 3
+      },
+      "crossStageLinks": 1,
+      "impactScore": 3,
+      "isDeadCode": false,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 9,
+      "hotspotLevel": "low",
+      "summary": "Main orchestration code. Classes: EdgeMLLMModule. Functions: __init__, load_model, run_inference",
+      "functions": [
+        "__init__",
+        "load_model",
+        "run_inference"
+      ],
+      "classes": [
+        "EdgeMLLMModule"
+      ],
+      "exports": [],
+      "imports": [
+        "src/modules/ai_module_base.py"
+      ],
+      "usedBy": [
+        "src/modules/ai_manager.py"
+      ]
+    },
+    {
+      "path": "src/modules/facial_recognition_ai_module.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 118,
+      "size": 4854,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 4
+      },
+      "crossStageLinks": 1,
+      "impactScore": 4,
+      "isDeadCode": false,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 13,
+      "hotspotLevel": "medium",
+      "summary": "Main orchestration code. Classes: FacialRecognitionAIModule. Functions: __init__, load_model, run_inference",
+      "functions": [
+        "__init__",
+        "load_model",
+        "run_inference"
+      ],
+      "classes": [
+        "FacialRecognitionAIModule"
+      ],
+      "exports": [],
+      "imports": [
+        "src/modules/ai_module_base.py"
+      ],
+      "usedBy": [
+        "src/modules/ai_manager.py",
+        "Testing/testingSequence.py"
+      ]
+    },
+    {
+      "path": "src/modules/global_response_module.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 61,
+      "size": 2354,
+      "collaboration": {
+        "status": "isolated",
+        "impact": "solo",
+        "summary": "No local collaboration links yet.",
+        "score": 0
+      },
+      "crossStageLinks": 0,
+      "impactScore": 0,
+      "isDeadCode": true,
+      "isOrphan": true,
+      "isCircular": false,
+      "hotspotScore": 4,
+      "hotspotLevel": "low",
+      "summary": "Main orchestration code. Classes: GlobalResponseModule. Functions: __init__, start, stop, add_message",
+      "functions": [
+        "__init__",
+        "start",
+        "stop",
+        "add_message",
+        "_update_loop"
+      ],
+      "classes": [
+        "GlobalResponseModule"
+      ],
+      "exports": [],
+      "imports": [],
+      "usedBy": []
+    },
+    {
+      "path": "src/modules/input_event_manager.py",
+      "fileType": "module",
+      "stage": "core",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 95,
+      "size": 3826,
+      "collaboration": {
+        "status": "isolated",
+        "impact": "solo",
+        "summary": "No local collaboration links yet.",
+        "score": 0
+      },
+      "crossStageLinks": 0,
+      "impactScore": 0,
+      "isDeadCode": true,
+      "isOrphan": true,
+      "isCircular": false,
+      "hotspotScore": 5,
+      "hotspotLevel": "low",
+      "summary": "Core business logic. Classes: InputEventManager. Functions: __init__, start, stop, _listen_for_input",
+      "functions": [
+        "__init__",
+        "start",
+        "stop",
+        "_listen_for_input",
+        "process_voice_command"
+      ],
+      "classes": [
+        "InputEventManager"
+      ],
+      "exports": [],
+      "imports": [],
+      "usedBy": []
+    },
+    {
+      "path": "src/modules/object_detection_ai_module.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 69,
+      "size": 2633,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 4
+      },
+      "crossStageLinks": 1,
+      "impactScore": 4,
+      "isDeadCode": false,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 12,
+      "hotspotLevel": "medium",
+      "summary": "Main orchestration code. Classes: ObjectDetectionAIModule. Functions: __init__, load_model, run_inference",
+      "functions": [
+        "__init__",
+        "load_model",
+        "run_inference"
+      ],
+      "classes": [
+        "ObjectDetectionAIModule"
+      ],
+      "exports": [],
+      "imports": [
+        "src/modules/ai_module_base.py"
+      ],
+      "usedBy": [
+        "src/modules/ai_manager.py",
+        "Testing/testingSequence.py"
+      ]
+    },
+    {
+      "path": "src/modules/ocr_module.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 174,
+      "size": 6415,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 3
+      },
+      "crossStageLinks": 1,
+      "impactScore": 3,
+      "isDeadCode": false,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 10,
+      "hotspotLevel": "medium",
+      "summary": "Main orchestration code. Classes: OCRModule. Functions: __init__, load_model, calculate_iou, reading_order",
+      "functions": [
+        "__init__",
+        "load_model",
+        "calculate_iou",
+        "reading_order",
+        "_prep",
+        "_worker_loop",
+        "init_model",
+        "run_inference"
+      ],
+      "classes": [
+        "OCRModule"
+      ],
+      "exports": [],
+      "imports": [
+        "src/modules/ai_module_base.py"
+      ],
+      "usedBy": [
+        "src/modules/ai_manager.py"
+      ]
+    },
+    {
+      "path": "src/modules/passive_detector_module.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 208,
+      "size": 10220,
+      "collaboration": {
+        "status": "isolated",
+        "impact": "solo",
+        "summary": "No local collaboration links yet.",
+        "score": 0
+      },
+      "crossStageLinks": 0,
+      "impactScore": 0,
+      "isDeadCode": true,
+      "isOrphan": true,
+      "isCircular": false,
+      "hotspotScore": 5,
+      "hotspotLevel": "low",
+      "summary": "Main orchestration code. Classes: PassiveDetectorModule. Functions: __init__, start, stop, _detection_loop",
+      "functions": [
+        "__init__",
+        "start",
+        "stop",
+        "_detection_loop",
+        "_run_object_detection",
+        "_run_facial_recognition",
+        "_run_text_detection",
+        "_parse_detections",
+        "_format_detections",
+        "_filter_recent_detections"
+      ],
+      "classes": [
+        "PassiveDetectorModule"
+      ],
+      "exports": [],
+      "imports": [],
+      "usedBy": []
+    },
+    {
+      "path": "src/modules/recording_manager.py",
+      "fileType": "module",
+      "stage": "core",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 84,
+      "size": 2792,
+      "collaboration": {
+        "status": "isolated",
+        "impact": "solo",
+        "summary": "No local collaboration links yet.",
+        "score": 0
+      },
+      "crossStageLinks": 0,
+      "impactScore": 0,
+      "isDeadCode": true,
+      "isOrphan": true,
+      "isCircular": false,
+      "hotspotScore": 4,
+      "hotspotLevel": "low",
+      "summary": "Core business logic. Classes: RecordingManager. Functions: __new__, _initialize, record_audio, __del__",
+      "functions": [
+        "__new__",
+        "_initialize",
+        "record_audio",
+        "__del__"
+      ],
+      "classes": [
+        "RecordingManager"
+      ],
+      "exports": [],
+      "imports": [],
+      "usedBy": []
+    },
+    {
+      "path": "src/modules/semantic_analyzer_embed_module.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 1,
+      "size": 0,
+      "collaboration": {
+        "status": "isolated",
+        "impact": "solo",
+        "summary": "No local collaboration links yet.",
+        "score": 0
+      },
+      "crossStageLinks": 0,
+      "impactScore": 0,
+      "isDeadCode": true,
+      "isOrphan": true,
+      "isCircular": false,
+      "hotspotScore": 1,
+      "hotspotLevel": "low",
+      "summary": "Main orchestration code. Type: module",
+      "functions": [],
+      "classes": [],
+      "exports": [],
+      "imports": [],
+      "usedBy": []
+    },
+    {
+      "path": "src/modules/semantic_analyzer_setfit_module.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 98,
+      "size": 4327,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 3
+      },
+      "crossStageLinks": 1,
+      "impactScore": 3,
+      "isDeadCode": false,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 10,
+      "hotspotLevel": "low",
+      "summary": "Main orchestration code. Classes: SemanticAnalyzerSetfitModule. Functions: __init__, load_model, run_inference",
+      "functions": [
+        "__init__",
+        "load_model",
+        "run_inference"
+      ],
+      "classes": [
+        "SemanticAnalyzerSetfitModule"
+      ],
+      "exports": [],
+      "imports": [
+        "src/modules/ai_module_base.py"
+      ],
+      "usedBy": [
+        "src/modules/ai_manager.py"
+      ]
+    },
+    {
+      "path": "src/modules/shared_buffer.py",
+      "fileType": "module",
+      "stage": "helpers",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 5,
+      "size": 180,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 2
+      },
+      "crossStageLinks": 1,
+      "impactScore": 2,
+      "isDeadCode": false,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 5,
+      "hotspotLevel": "low",
+      "summary": "Support or shared utility code. Type: module",
+      "functions": [],
+      "classes": [],
+      "exports": [],
+      "imports": [],
+      "usedBy": [
+        "src/modules/API_mllm_module.py"
+      ]
+    },
+    {
+      "path": "src/modules/speech_to_text_module.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 45,
+      "size": 1702,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 3
+      },
+      "crossStageLinks": 1,
+      "impactScore": 3,
+      "isDeadCode": false,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 9,
+      "hotspotLevel": "low",
+      "summary": "Main orchestration code. Classes: SpeechToTextModule. Functions: __init__, load_model, run_inference",
+      "functions": [
+        "__init__",
+        "load_model",
+        "run_inference"
+      ],
+      "classes": [
+        "SpeechToTextModule"
+      ],
+      "exports": [],
+      "imports": [
+        "src/modules/ai_module_base.py"
+      ],
+      "usedBy": [
+        "src/modules/ai_manager.py"
+      ]
+    },
+    {
+      "path": "src/modules/StreamingManager.py",
+      "fileType": "module",
+      "stage": "core",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 160,
+      "size": 6645,
+      "collaboration": {
+        "status": "isolated",
+        "impact": "solo",
+        "summary": "No local collaboration links yet.",
+        "score": 0
+      },
+      "crossStageLinks": 0,
+      "impactScore": 0,
+      "isDeadCode": true,
+      "isOrphan": true,
+      "isCircular": false,
+      "hotspotScore": 5,
+      "hotspotLevel": "low",
+      "summary": "Core business logic. Classes: CameraStream. Functions: __init__, run, stop, on_message",
+      "functions": [
+        "__init__",
+        "run",
+        "stop",
+        "on_message",
+        "on_new_sample"
+      ],
+      "classes": [
+        "CameraStream"
+      ],
+      "exports": [],
+      "imports": [],
+      "usedBy": []
+    },
+    {
+      "path": "src/modules/TTS_module.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 103,
+      "size": 3907,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 3
+      },
+      "crossStageLinks": 1,
+      "impactScore": 3,
+      "isDeadCode": false,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 10,
+      "hotspotLevel": "low",
+      "summary": "Main orchestration code. Classes: PiperVoice, TTSModule. Functions: load, synthesize, __init__, load_model",
+      "functions": [
+        "load",
+        "synthesize",
+        "__init__",
+        "load_model",
+        "run_inference",
+        "speak_aloud",
+        "speak"
+      ],
+      "classes": [
+        "PiperVoice",
+        "TTSModule"
+      ],
+      "exports": [],
+      "imports": [
+        "src/modules/ai_module_base.py"
+      ],
+      "usedBy": [
+        "src/modules/ai_manager.py"
+      ]
+    },
+    {
+      "path": "src/modules/__init__.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 1,
+      "size": 0,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 1
+      },
+      "crossStageLinks": 0,
+      "impactScore": 1,
+      "isDeadCode": false,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 4,
+      "hotspotLevel": "low",
+      "summary": "Main orchestration code. Type: module",
+      "functions": [],
+      "classes": [],
+      "exports": [],
+      "imports": [],
+      "usedBy": [
+        "Testing/testingSequence.py"
+      ]
+    },
+    {
+      "path": "src/utilities/frame_buffer.py",
+      "fileType": "module",
+      "stage": "helpers",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 51,
+      "size": 1993,
+      "collaboration": {
+        "status": "isolated",
+        "impact": "solo",
+        "summary": "No local collaboration links yet.",
+        "score": 0
+      },
+      "crossStageLinks": 0,
+      "impactScore": 0,
+      "isDeadCode": true,
+      "isOrphan": true,
+      "isCircular": false,
+      "hotspotScore": 4,
+      "hotspotLevel": "low",
+      "summary": "Support or shared utility code. Classes: PingPongBuffer. Functions: __init__, update, retrieve_frame, retrieve_both",
+      "functions": [
+        "__init__",
+        "update",
+        "retrieve_frame",
+        "retrieve_both"
+      ],
+      "classes": [
+        "PingPongBuffer"
+      ],
+      "exports": [],
+      "imports": [],
+      "usedBy": []
+    },
+    {
+      "path": "src/utilities/__init__.py",
+      "fileType": "module",
+      "stage": "helpers",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 1,
+      "size": 0,
+      "collaboration": {
+        "status": "isolated",
+        "impact": "solo",
+        "summary": "No local collaboration links yet.",
+        "score": 0
+      },
+      "crossStageLinks": 0,
+      "impactScore": 0,
+      "isDeadCode": true,
+      "isOrphan": true,
+      "isCircular": false,
+      "hotspotScore": 1,
+      "hotspotLevel": "low",
+      "summary": "Support or shared utility code. Type: module",
+      "functions": [],
+      "classes": [],
+      "exports": [],
+      "imports": [],
+      "usedBy": []
+    },
+    {
+      "path": "src/__init__.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 1,
+      "size": 0,
+      "collaboration": {
+        "status": "isolated",
+        "impact": "solo",
+        "summary": "No local collaboration links yet.",
+        "score": 0
+      },
+      "crossStageLinks": 0,
+      "impactScore": 0,
+      "isDeadCode": true,
+      "isOrphan": true,
+      "isCircular": false,
+      "hotspotScore": 1,
+      "hotspotLevel": "low",
+      "summary": "Main orchestration code. Type: module",
+      "functions": [],
+      "classes": [],
+      "exports": [],
+      "imports": [],
+      "usedBy": []
+    },
+    {
+      "path": "Testing/testingSequence.py",
+      "fileType": "test",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 113,
+      "size": 4321,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 3
+      },
+      "crossStageLinks": 0,
+      "impactScore": 3,
+      "isDeadCode": true,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 11,
+      "hotspotLevel": "medium",
+      "summary": "Main orchestration code. Functions: get_modules, test_module_import, test_face_recognition, test_object_detection",
+      "functions": [
+        "get_modules",
+        "test_module_import",
+        "test_face_recognition",
+        "test_object_detection"
+      ],
+      "classes": [],
+      "exports": [],
+      "imports": [
+        "src/modules/__init__.py",
+        "src/modules/facial_recognition_ai_module.py",
+        "src/modules/object_detection_ai_module.py"
+      ],
+      "usedBy": []
+    },
+    {
+      "path": "training/facial_recognition/FacialRecognitionScript.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 155,
+      "size": 6802,
+      "collaboration": {
+        "status": "isolated",
+        "impact": "solo",
+        "summary": "No local collaboration links yet.",
+        "score": 0
+      },
+      "crossStageLinks": 0,
+      "impactScore": 0,
+      "isDeadCode": true,
+      "isOrphan": true,
+      "isCircular": false,
+      "hotspotScore": 5,
+      "hotspotLevel": "low",
+      "summary": "Main orchestration code. Functions: IDFace, folderScan",
+      "functions": [
+        "IDFace",
+        "folderScan"
+      ],
+      "classes": [],
+      "exports": [],
+      "imports": [],
+      "usedBy": []
+    },
+    {
+      "path": "training/facial_recognition/referenceCode/detectFaceTestExampleCode.py",
+      "fileType": "test",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 53,
+      "size": 2131,
+      "collaboration": {
+        "status": "isolated",
+        "impact": "solo",
+        "summary": "No local collaboration links yet.",
+        "score": 0
+      },
+      "crossStageLinks": 0,
+      "impactScore": 0,
+      "isDeadCode": true,
+      "isOrphan": true,
+      "isCircular": false,
+      "hotspotScore": 4,
+      "hotspotLevel": "low",
+      "summary": "Main orchestration code. Functions: detectAndDisplay",
+      "functions": [
+        "detectAndDisplay"
+      ],
+      "classes": [],
+      "exports": [],
+      "imports": [],
+      "usedBy": []
+    },
+    {
+      "path": "training/facial_recognition/referenceCode/FaceDetectionReference1.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 102,
+      "size": 4811,
+      "collaboration": {
+        "status": "isolated",
+        "impact": "solo",
+        "summary": "No local collaboration links yet.",
+        "score": 0
+      },
+      "crossStageLinks": 0,
+      "impactScore": 0,
+      "isDeadCode": true,
+      "isOrphan": true,
+      "isCircular": false,
+      "hotspotScore": 5,
+      "hotspotLevel": "low",
+      "summary": "Main orchestration code. Functions: IDFace, folderScan",
+      "functions": [
+        "IDFace",
+        "folderScan"
+      ],
+      "classes": [],
+      "exports": [],
+      "imports": [],
+      "usedBy": []
+    },
+    {
+      "path": "training/facial_recognition/train_model.py",
+      "fileType": "module",
+      "stage": "core",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 59,
+      "size": 1885,
+      "collaboration": {
+        "status": "isolated",
+        "impact": "solo",
+        "summary": "No local collaboration links yet.",
+        "score": 0
+      },
+      "crossStageLinks": 0,
+      "impactScore": 0,
+      "isDeadCode": true,
+      "isOrphan": true,
+      "isCircular": false,
+      "hotspotScore": 4,
+      "hotspotLevel": "low",
+      "summary": "Core business logic. Type: module",
+      "functions": [],
+      "classes": [],
+      "exports": [],
+      "imports": [],
+      "usedBy": []
+    },
+    {
+      "path": "training/setfit/train_setfit_MoE.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 98,
+      "size": 2679,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 2
+      },
+      "crossStageLinks": 1,
+      "impactScore": 2,
+      "isDeadCode": true,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 7,
+      "hotspotLevel": "low",
+      "summary": "Main orchestration code. Type: module",
+      "functions": [],
+      "classes": [],
+      "exports": [],
+      "imports": [
+        "src/config/config.py"
+      ],
+      "usedBy": []
+    },
+    {
+      "path": "training/setfit/train_setfit_urgency.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 90,
+      "size": 2482,
+      "collaboration": {
+        "status": "connected",
+        "impact": "leaf",
+        "summary": "Part of the local code flow with a focused role.",
+        "score": 2
+      },
+      "crossStageLinks": 1,
+      "impactScore": 2,
+      "isDeadCode": true,
+      "isOrphan": false,
+      "isCircular": false,
+      "hotspotScore": 7,
+      "hotspotLevel": "low",
+      "summary": "Main orchestration code. Type: module",
+      "functions": [],
+      "classes": [],
+      "exports": [],
+      "imports": [
+        "src/config/config.py"
+      ],
+      "usedBy": []
+    },
+    {
+      "path": "verify_tts.py",
+      "fileType": "module",
+      "stage": "main",
+      "lang": "py",
+      "ext": ".py",
+      "lines": 31,
+      "size": 925,
+      "collaboration": {
+        "status": "isolated",
+        "impact": "solo",
+        "summary": "No local collaboration links yet.",
+        "score": 0
+      },
+      "crossStageLinks": 0,
+      "impactScore": 0,
+      "isDeadCode": true,
+      "isOrphan": true,
+      "isCircular": false,
+      "hotspotScore": 3,
+      "hotspotLevel": "low",
+      "summary": "Main orchestration code. Functions: test_tts",
+      "functions": [
+        "test_tts"
+      ],
+      "classes": [],
+      "exports": [],
+      "imports": [],
+      "usedBy": []
+    }
+  ]
+}

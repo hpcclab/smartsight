@@ -7,6 +7,18 @@ yolo_vision:
   min_conf: 0.7
   logging_enabled: False
 
+dollar_detection:
+  backend: "roboflow"  # "roboflow" (hosted API) or "local" (bundled weights, offline)
+  min_conf: 0.5
+  logging_enabled: False
+  # roboflow backend - api key comes from ROBOFLOW_API_KEY or configSensitive.yaml
+  roboflow_api_url: "https://serverless.roboflow.com"
+  roboflow_model_id: "dollar-bill-a5fkm/1"
+  roboflow_timeout: 10
+  jpeg_quality: 80
+  # local backend
+  model_path: "models/dollar_detection/best.pt"
+
 openrouter_api:
   model: "google/gemma-4-31b-it:free"
 
@@ -27,6 +39,8 @@ passive_detection:
   object_detection_max_rate: 1.0
   facial_recognition_max_rate: 1.0
   text_detection_max_rate: 1.0
+  dollar_detection_enabled: False # set True to announce dollar bills passively
+  dollar_detection_max_rate: 1.0
 
 recording:
   sample_rate: 16000
