@@ -51,7 +51,7 @@ class CameraStream(threading.Thread):
             # Using drop=true max-buffers=1 to align with appsink pattern.
 
             pipeline_str = (
-                f"multifilesrc location={video_path.replace(chr(92), '/')} ! decodebin ! "
+                f"filesrc location={video_path.replace(chr(92), '/')} ! decodebin ! "
                 "videoconvert ! video/x-raw,format=BGR ! "
                 "appsink name=sink emit-signals=true max-buffers=1 drop=true sync=true"
             )
@@ -99,8 +99,18 @@ class CameraStream(threading.Thread):
             print(f"GStreamer Error: {err}, {debug}")
             self.stop()
         elif t == Gst.MessageType.EOS:
-            print("End-Of-Stream reached.")
-            self.stop()
+
+            if self.simulation_mode:
+                ok = self.pipeline.seek_simple(
+                    Gst.Format.TIME,
+                    Gst.SeekFlags.FLUSH | Gst.SeekFlags.KEY_UNIT,
+                    0,
+                )
+                if not ok:
+                    print("Loop seek failed")
+            else:
+                print("End-Of-Stream reached.")
+                self.stop()
         return True
 
     def on_new_sample(self, sink):
