@@ -44,6 +44,7 @@ class InputEventManager:
         logger.info("Listening for space bar press to trigger recording...")
         while not self._stop_event.is_set():
             if keyboard.is_pressed('space'):
+                print("Keyboard Pressed")
                 transcribed_text = self.process_voice_command()
                 if transcribed_text and transcribed_text.strip():
                     response = self.active_module.ProcessRequest(transcribed_text)

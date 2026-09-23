@@ -10,3 +10,5 @@ results.txt
 /junk
 /checkpoints
 /src/config/configSensitive.yaml
+.grokignore
+AGENTS.md

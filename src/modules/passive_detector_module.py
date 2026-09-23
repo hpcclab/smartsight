@@ -80,7 +80,7 @@ class PassiveDetectorModule:
             frame = video_buffer.retrieve_frame()
             if frame is not None:
                 try:
-                    print(f"Running {task_name} on frame")
+                    # print(f"Running {task_name} on frame")
                     current_task["func"](frame, current_task["module_class"])
                 except Exception as e:
                     self.logger.error(f"Detection loop error for {task_name}: {e}")

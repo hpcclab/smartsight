@@ -8,7 +8,12 @@ yolo_vision:
   logging_enabled: False
 
 openrouter_api:
-  model: "google/gemma-4-31b-it:free"
+  model_priority:
+    - "google/gemma-4-31b-it:free"
+    - "inclusionai/ling-3.0-flash-vl:free"
+    - "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+    - "nex-agi/nex-n2.5-mini:free"
+    - "dots-studio/dots-3-note-preview:free"
 
 face_recognition:
   encodings_path: "models/facial_recognition/encodings.pickle"
