@@ -1,4 +1,5 @@
 import logging
+from utilities.logging_setup import get_logger
 from .TTS_module import TTSModule
 from .object_detection_ai_module import ObjectDetectionAIModule
 from .facial_recognition_ai_module import FacialRecognitionAIModule
@@ -8,13 +9,15 @@ from .edge_mllm_module import EdgeMLLMModule
 from .semantic_analyzer_setfit_module import SemanticAnalyzerSetfitModule
 from .API_mllm_module import APIMLLMModule
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
 class AIManager:
     """
     Manager class responsible for instantiating and handling 
     all AI modules in the system.
     """
     def __init__(self):
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = get_logger(self.__class__.__name__)
         self.logger.info("Initializing AIManager and instantiating AI modules...")
         
         # Instantiate all AI modules and hold them in a list

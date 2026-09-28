@@ -1,17 +1,20 @@
 import threading
 import time
 import logging
+from utilities.logging_setup import get_logger
 from modules.shared_buffer import video_buffer
 from modules.object_detection_ai_module import ObjectDetectionAIModule
 from modules.ai_manager import AI_manager
 from config.config import get_config
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 class PassiveDetectorModule:
     """
     Runs the ObjectDetectionAIModule continuously on frames from the shared buffer.
     """
     def __init__(self, global_response):
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = get_logger(self.__class__.__name__)
         self.global_response = global_response
         self.running = False
         self.thread = None

@@ -12,6 +12,11 @@ class FacialRecognitionAIModule(BaseAIModel):
 
     def load_model(self):
         """Loads the face detection cascade and recognition encodings."""
+        if not self.config.get("face_recognition_enabled", False):
+            self.logger.warning("Face recognition is not enabled in the configuration.")
+            return False
+        else:
+            self.logger.info(f"Loading facial recognition model...")
         try:
             cascade_path = self.config.get("cascade_path", "models/facial_recognition/haarcascade_frontalface_default.xml")
             encodings_path = self.config.get("encodings_path", "models/facial_recognition/encodings.pickle")
@@ -38,6 +43,7 @@ class FacialRecognitionAIModule(BaseAIModel):
             self.logger.error(f"Error loading models: {e}")
             self.detector = None
             self.data = None
+        self.logger.info(f"Loading facial recognition model complete.")
 
     def run_inference(self, input_data: str, **kwargs) -> str:
         """

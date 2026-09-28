@@ -3,6 +3,9 @@ import whisper
 from config.config import get_config
 from .ai_module_base import BaseAIModel
 
+# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+
 class SpeechToTextModule(BaseAIModel):
     """
     Module responsible for transcribing audio files to text using OpenAI Whisper.

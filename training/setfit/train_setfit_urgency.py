@@ -12,10 +12,10 @@ import json
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from src.config.config import get_config
 config = get_config().get("semantic_analyzer", {})
-logging.basicConfig(format='%(asctime)s - %(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S',
-                    level=logging.INFO,
-                    handlers=[LoggingHandler()])
+# logging.basicConfig(format='%(asctime)s - %(message)s',
+#                     datefmt='%Y-%m-%d %H:%M:%S',
+#                     level=logging.INFO,
+#                     handlers=[LoggingHandler()])
 
 with open(config.get("urgency_setfit_train_dataset", "urgentTrainSetFit.json"), "r") as f:
     data = json.load(f)

@@ -9,9 +9,13 @@ class ObjectDetectionAIModule(BaseAIModel):
 
     def load_model(self):
         """Initializes the YOLO model using the path from config."""
+        if not self.config.get("yolo_vision_enabled", True):
+            self.logger.warning("YOLO vision is not enabled in the configuration.")
+            return False
         model_path = self.config.get("model_path", "yolov8s.pt")
-        self.logger.info(f"Loading YOLO model from {model_path}...")
+        self.logger.info(f"Loading YOLO vision model {model_path}...")
         self.model = YOLO(model_path)
+        self.logger.info(f"Loading YOLO model complete.")
 
     def run_inference(self, input_data: str, **kwargs) -> str:
         """

@@ -12,6 +12,9 @@ class EdgeMLLMModule(BaseAIModel):
 
     def load_model(self):
         """Loads the local Ollama LLM into memory."""
+        if not self.config.get("ollama_llm_enabled", "gemma3:4b"):
+            self.logger.warning("Ollama LLM is not enabled in the configuration.")
+            return False
         self.logger.info(f"Loading Edge MLLM model ({self.model_name})...")
         try:
             # Trigger a small load to ensure model is in VRAM if needed

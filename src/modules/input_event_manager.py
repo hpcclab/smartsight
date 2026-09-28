@@ -1,15 +1,15 @@
 import os
-import logging
 import threading
 import time
 import keyboard
+from utilities.logging_setup import get_logger
 from modules.recording_manager import recording_manager_instance
 from modules.ai_manager import AI_manager
 # from modules.active_module_manager import active_module_manager_instance
 from modules.speech_to_text_module import SpeechToTextModule
 from modules.speech_to_text_module import SpeechToTextModule
 
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class InputEventManager:
     """
@@ -17,6 +17,7 @@ class InputEventManager:
     """
 
     def __init__(self, active_module, temp_dir: str = "temp"):
+        self.logger = get_logger(self.__class__.__name__)
         self.temp_dir = temp_dir
         if not os.path.exists(self.temp_dir):
             os.makedirs(self.temp_dir)
@@ -31,27 +32,30 @@ class InputEventManager:
             self._stop_event.clear()
             self._listening_thread = threading.Thread(target=self._listen_for_input, daemon=True)
             self._listening_thread.start()
-            logger.info("InputEventManager listening thread started.")
+            self.logger.info("InputEventManager listening thread started.")
 
     def stop(self):
         """Stops the background listening thread."""
         self._stop_event.set()
         if self._listening_thread:
             self._listening_thread.join()
-            logger.info("InputEventManager listening thread stopped.")
+            self.logger.info("InputEventManager listening thread stopped.")
 
     def _listen_for_input(self):
-        logger.info("Listening for space bar press to trigger recording...")
+        self.logger.info("Listening for space bar press to trigger recording...")
         while not self._stop_event.is_set():
             if keyboard.is_pressed('space'):
-                print("Keyboard Pressed")
+                self.logger.info("Keyboard pressed: space bar")
                 transcribed_text = self.process_voice_command()
+                self.logger.info(f"Transcribed text: '{transcribed_text}'")
                 if transcribed_text and transcribed_text.strip():
                     response = self.active_module.ProcessRequest(transcribed_text)
-                    logger.info(f"Active Module Response: {response}")
+                    # response = "placeholder" 
+                    self.logger.info(f"Active Module Response: {response}")
                 # Wait for the spacebar to be released before continuing
                 while keyboard.is_pressed('space') and not self._stop_event.is_set():
                     time.sleep(0.1)
+                
             time.sleep(0.05)
 
     def process_voice_command(self) -> str:
@@ -64,21 +68,26 @@ class InputEventManager:
         """
         temp_audio_path = os.path.join(self.temp_dir, "last_voice_command.wav")
 
-        logger.info("Space bar pressed! Initiating voice command processing...")
+        self.logger.info("Space bar pressed! Initiating voice command processing...")
 
         # 1. Record Audio
+        global_response = self.active_module.global_response_module
+        global_response.interrupt_playback()
         try:
             recording_manager_instance.record_audio(
-                temp_audio_path, 
+                temp_audio_path,
                 is_recording_func=lambda: keyboard.is_pressed('space') and not self._stop_event.is_set()
             )
-            logger.info("Voice command recorded.")
+            self.logger.info("Voice command recorded.")
         except Exception as e:
-            logger.error(f"Failed to record voice command: {e}")
+            self.logger.error(f"Failed to record voice command: {e}")
+            global_response.resume_playback()
             return ""
+        finally:
+            global_response.resume_playback()
 
         # 2. Transcribe Audio via AIManager
-        logger.info("Sending recorded audio for transcription...")
+        self.logger.info("Sending recorded audio for transcription...")
         try:
             transcribed_text = AI_manager.execute_module(
                 condition=lambda m: isinstance(m, SpeechToTextModule),
@@ -86,10 +95,11 @@ class InputEventManager:
                 input_data=temp_audio_path
             )
 
-            logger.info(f"Transcription complete: '{transcribed_text}'")
+            self.logger.info(f"Transcription complete: '{transcribed_text}'")
             # Trigger active module.
-
+            global_response.resume_playback()
             return transcribed_text
         except Exception as e:
-            logger.error(f"Failed to transcribe voice command: {e}")
+            self.logger.error(f"Failed to transcribe voice command: {e}")
+            global_response.resume_playback()
             return ""

@@ -1,21 +1,23 @@
 ollama_llm:
+  ollama_llm_enabled: False
   model: "gemma3:4b"
   timeout: 30
 
 yolo_vision:
+  yolo_vision_enabled: False
   model_path: "models/yolov8s.pt"
   min_conf: 0.7
   logging_enabled: False
 
 openrouter_api:
   model_priority:
-    - "google/gemma-4-31b-it:free"
-    - "inclusionai/ling-3.0-flash-vl:free"
     - "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
-    - "nex-agi/nex-n2.5-mini:free"
     - "dots-studio/dots-3-note-preview:free"
+    - "nex-agi/nex-n2.5-mini:free"
+    - "google/gemma-4-31b-it:free"
 
 face_recognition:
+  face_recognition_enabled: False
   encodings_path: "models/facial_recognition/encodings.pickle"
   cascade_path: "models/facial_recognition/haarcascade_frontalface_default.xml"
   tolerance: 0.5
@@ -28,6 +30,7 @@ piper_tts:
   temp_path: "temp/piper"
 
 passive_detection:
+  passive_detection_enabled: False
   detection_cooldown: 5 # number of seconds since last detection that object can be announced again
   object_detection_max_rate: 1.0
   facial_recognition_max_rate: 1.0

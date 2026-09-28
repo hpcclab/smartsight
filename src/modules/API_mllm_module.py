@@ -9,7 +9,7 @@ class APIMLLMModule(BaseAIModel):
     def __init__(self):
         super().__init__("openrouter_api")
         self.api_key = self.config.get("api_key")
-        self.model_name = self.config.get("model", "gemma3:12b")
+        # self.model_name = self.config.get("model", "gemma3:12b") # default model
 
     def load_model(self):
         # API module does not need to load local weights
@@ -47,7 +47,7 @@ class APIMLLMModule(BaseAIModel):
                 self.logger.warning("use_image is True, but no frame is available in the shared buffer.")
 
         payload = {
-            "model": model or self.model_name,
+            "model": model,
             "messages": messages,
             "stream": stream
         }

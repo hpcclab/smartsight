@@ -1,10 +1,11 @@
 import pyaudio
 import wave
 import time
-import logging
+from utilities.logging_setup import get_logger
 from config.config import get_config
 
-logger = logging.getLogger(__name__)
+# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
 
 class RecordingManager:
     """
@@ -20,6 +21,7 @@ class RecordingManager:
 
     def _initialize(self):
         """Initializes PyAudio settings from config."""
+        self.logger = get_logger(self.__class__.__name__)
         self.config = get_config().get("recording", {})
         self.sample_rate = self.config.get("sample_rate", 16000)
         self.channels = self.config.get("channels", 1)
@@ -37,7 +39,7 @@ class RecordingManager:
         Returns:
             str: The path to the saved audio file.
         """
-        logger.info("Starting audio recording (waiting for release)...")
+        self.logger.info("Starting audio recording (waiting for release)...")
 
         try:
             stream = self.audio.open(
@@ -55,7 +57,7 @@ class RecordingManager:
                 data = stream.read(self.chunk_size, exception_on_overflow=False)
                 frames.append(data)
 
-            logger.info("Recording finished.")
+            self.logger.info("Recording finished.")
 
             stream.stop_stream()
             stream.close()
@@ -67,11 +69,11 @@ class RecordingManager:
                 wf.setframerate(self.sample_rate)
                 wf.writeframes(b''.join(frames))
 
-            logger.info(f"Audio saved to {output_filepath}")
+            self.logger.info(f"Audio saved to {output_filepath}")
             return output_filepath
 
         except Exception as e:
-            logger.error(f"Failed to record audio: {e}")
+            self.logger.error(f"Failed to record audio: {e}")
             raise
 
     def __del__(self):

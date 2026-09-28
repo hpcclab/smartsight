@@ -12,3 +12,4 @@ results.txt
 /src/config/configSensitive.yaml
 .grokignore
 AGENTS.md
+/junk

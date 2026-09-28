@@ -7,8 +7,9 @@ sys.path.append(os.path.join(os.getcwd(), 'src'))
 
 from modules.TTS_module import TTSModule
 
+# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
 def test_tts():
-    logging.basicConfig(level=logging.INFO)
     print("Initializing TTSModule...")
     # Point to the config file (adjusted path from root)
     tts = TTSModule()

@@ -7,8 +7,20 @@ from modules.active_module import ActiveModule
 from modules.ai_manager import AI_manager
 from modules.input_event_manager import InputEventManager
 import logging
+import sys
+from config.config import get_config
+config = get_config()
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+root = logging.getLogger()
+if not root.handlers:
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    ))
+    root.addHandler(handler)
+root.setLevel(logging.INFO)
+_configured = True
+
 
 # Start the camera stream in a background thread
 stream = CameraStream()
@@ -23,7 +35,8 @@ global_response.start()
 
 # Start the passive detector, passing the global response module instance
 passive_detector = PassiveDetectorModule(global_response)
-passive_detector.start()
+if get_config().get("passive_detection_enabled", {}):
+    passive_detector.start()
 
 # Start the active module
 active_module = ActiveModule(global_response)

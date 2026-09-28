@@ -4,6 +4,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Generator, Union
 from config.config import get_config
+from utilities.logging_setup import get_logger
 
 # Set up a unified logger
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -14,7 +15,7 @@ class BaseAIModel(ABC):
         self.config = get_config().get(self.section_name, {})
         self.model = None
         self.logging_enabled = self.config.get("logging_enabled", True)
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.logger = get_logger(self.__class__.__name__)
         self.cache = {}
 
     @abstractmethod
