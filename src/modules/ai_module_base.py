@@ -32,8 +32,6 @@ class BaseAIModel(ABC):
         """
         The Orchestrator: Handles profiling, loading, and streaming detection.
         """
-        if self.model is None:
-            self.load_model()
 
         start_time = time.perf_counter()
         

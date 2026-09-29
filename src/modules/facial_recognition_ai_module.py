@@ -52,6 +52,11 @@ class FacialRecognitionAIModule(BaseAIModel):
         """
         # Ensure models are loaded
         if self.detector is None or self.data is None:
+            if self.detector is None:
+                self.logger.warning("Facial recognition detector is not loaded.")
+            if self.data is None:
+                self.logger.warning("Facial recognition encodings are not loaded.")
+            self.logger.warning("Facial recognition models are not loaded. Attempting to load them now.")
             self.load_model()
             if self.detector is None or self.data is None:
                 return "Facial recognition models are not loaded."
