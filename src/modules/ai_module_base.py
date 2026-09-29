@@ -49,13 +49,21 @@ class BaseAIModel(ABC):
     def _stream_wrapper(self, gen, start_time, input_key):
         """Wraps a generator to profile it until the last chunk is yielded."""
         full_response = []
-        for chunk in gen:
-            full_response.append(str(chunk))
-            yield chunk
-        
-        end_time = time.perf_counter()
-        self._log_profile(start_time, end_time, is_stream=True)
-        self.cache[input_key] = {"output": "".join(full_response), "time": end_time}
+        try:
+            for chunk in gen:
+                full_response.append(str(chunk))
+                yield chunk
+        finally:
+            # Closing the wrapper (fusion stops the local model) must stop the inner stream too.
+            closer = getattr(gen, "close", None)
+            if callable(closer):
+                try:
+                    closer()
+                except Exception:
+                    pass
+            end_time = time.perf_counter()
+            self._log_profile(start_time, end_time, is_stream=True)
+            self.cache[input_key] = {"output": "".join(full_response), "time": end_time}
 
     def _log_profile(self, start, end, is_stream=False):
         duration = end - start

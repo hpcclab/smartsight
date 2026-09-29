@@ -1,18 +1,33 @@
 from .ai_manager import AI_manager
+from .fusion_module import FAILURE_TEXT, FusionModule
 from config.config import get_config
 from utilities.logging_setup import get_logger
 class ActiveModule:
-    def __init__(self, global_response_module):
+    def __init__(self, global_response_module, fusion=None):
         self.logger = get_logger(self.__class__.__name__)
-        self.config = get_config().get("openrouter_api", {})
+        full = get_config()
+        self.config = full.get("openrouter_api", {})
+        self._fusion_enabled = full.get("fusion", {}).get("enabled", True)
         self.global_response_module = global_response_module
+        if fusion is not None:
+            self.fusion = fusion
+        elif self._fusion_enabled:
+            self.fusion = FusionModule(global_response_module)
+        else:
+            self.fusion = None
             
     def ProcessRequest(self, text_input: str):
         """
-        Process text input by calling the API MLLM through the AI manager
-        with image input enabled. Tries each model in model_priority until
-        one returns a response.
+        Answer an active request. Fusion is the default: the local and cloud
+        models run together and speech starts from the local stream.
+        With fusion disabled, the cloud model list is tried once and the full
+        answer is spoken as a single message.
         """
+        if self.fusion is not None and self._fusion_enabled:
+            return self.fusion.handle(text_input)
+        return self._cloud_only(text_input)
+
+    def _cloud_only(self, text_input: str):
         models = self.config.get("model_priority") or []
         if not models:
             self.logger.warning("No models specified in model_priority. Falling back to legacy model.")
@@ -35,4 +50,4 @@ class ActiveModule:
             else:
                 self.logger.warning("Error. Retrying with next model.")
 
-        return "Failed to get response from the model."
+        return FAILURE_TEXT

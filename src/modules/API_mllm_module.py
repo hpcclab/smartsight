@@ -15,7 +15,7 @@ class APIMLLMModule(BaseAIModel):
         # API module does not need to load local weights
         pass
 
-    def run_inference(self, input_data: str, use_image: bool = False, model: str = None, stream: bool = False, **kwargs):
+    def run_inference(self, input_data: str, use_image: bool = False, model: str = None, stream: bool = False, frame=None, **kwargs):
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
@@ -31,7 +31,8 @@ class APIMLLMModule(BaseAIModel):
         ]
 
         if use_image:
-            frame = video_buffer.retrieve_frame()
+            if frame is None:
+                frame = video_buffer.retrieve_frame()
             if frame is not None:
                 # Encode frame as JPEG base64
                 _, buffer = cv2.imencode('.jpg', frame)
@@ -52,30 +53,44 @@ class APIMLLMModule(BaseAIModel):
             "stream": stream
         }
 
+        response = None
         try:
             response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, stream=stream)
             response.raise_for_status()
             
             if stream:
                 def generate():
-                    for line in response.iter_lines():
-                        if line:
-                            line = line.decode('utf-8')
-                            if line.startswith("data: ") and line != "data: [DONE]":
-                                try:
-                                    data = json.loads(line[6:])
-                                    if "choices" in data and len(data["choices"]) > 0:
-                                        delta = data["choices"][0].get("delta", {})
-                                        if "content" in delta:
-                                            yield delta["content"]
-                                except json.JSONDecodeError:
-                                    pass
+                    try:
+                        for line in response.iter_lines():
+                            if line:
+                                line = line.decode('utf-8')
+                                if line.startswith("data: ") and line != "data: [DONE]":
+                                    try:
+                                        data = json.loads(line[6:])
+                                        if "choices" in data and len(data["choices"]) > 0:
+                                            delta = data["choices"][0].get("delta", {})
+                                            content = delta.get("content")
+                                            if content:
+                                                yield content
+                                    except json.JSONDecodeError:
+                                        pass
+                    finally:
+                        response.close()
                 return generate()
             else:
-                result = response.json()
-                return result["choices"][0]["message"]["content"]
+                try:
+                    result = response.json()
+                    return result["choices"][0]["message"]["content"]
+                finally:
+                    response.close()
         except Exception as e:
             self.logger.error(f"Error during API request: {e}")
-            if 'response' in locals() and hasattr(response, 'text'):
+            if response is not None and hasattr(response, 'text'):
                 self.logger.error(f"Response details: {response.text}")
+                response.close()
+            if stream:
+                def _empty():
+                    if False:
+                        yield ""
+                return _empty()
             return None
