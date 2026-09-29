@@ -50,6 +50,7 @@ class PassiveDetectorModule:
             self.logger.info("Starting PassiveDetectorModule thread...")
             self.thread = threading.Thread(target=self._detection_loop, daemon=True)
             self.thread.start()
+            self.logger.info("PassiveDetectorModule thread started.")
 
     def stop(self):
         """Stops the passive detection thread."""

@@ -35,9 +35,13 @@ global_response.start()
 
 # Start the passive detector, passing the global response module instance
 passive_detector = PassiveDetectorModule(global_response)
-if get_config().get("passive_detection_enabled", {}):
+if (config.get("passive_detection", {}).get("passive_detection_enabled", False)):
     passive_detector.start()
-
+    logging.info("Passive detector started.")
+    print("Passive detector started.")
+else:
+    logging.info("Passive detector not started.")
+    print("Passive detector not started.")
 # Start the active module
 active_module = ActiveModule(global_response)
 

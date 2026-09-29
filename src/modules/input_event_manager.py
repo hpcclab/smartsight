@@ -9,8 +9,6 @@ from modules.ai_manager import AI_manager
 from modules.speech_to_text_module import SpeechToTextModule
 from modules.speech_to_text_module import SpeechToTextModule
 
-# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
 class InputEventManager:
     """
     Manager responsible for orchestrating user input events (e.g., voice commands).
@@ -52,6 +50,8 @@ class InputEventManager:
                     response = self.active_module.ProcessRequest(transcribed_text)
                     # response = "placeholder" 
                     self.logger.info(f"Active Module Response: {response}")
+                else:
+                    self.logger.warning("No transcribed text received.")
                 # Wait for the spacebar to be released before continuing
                 while keyboard.is_pressed('space') and not self._stop_event.is_set():
                     time.sleep(0.1)
