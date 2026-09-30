@@ -40,10 +40,10 @@ class InputEventManager:
             self.logger.info("InputEventManager listening thread stopped.")
 
     def _listen_for_input(self):
-        self.logger.info("Listening for space bar press to trigger recording...")
+        self.logger.info("Listening for page down press to trigger recording...")
         while not self._stop_event.is_set():
-            if keyboard.is_pressed('space'):
-                self.logger.info("Keyboard pressed: space bar")
+            if keyboard.is_pressed('page down'):
+                self.logger.info("Keyboard pressed: page down")
                 transcribed_text = self.process_voice_command()
                 self.logger.info(f"Transcribed text: '{transcribed_text}'")
                 if transcribed_text and transcribed_text.strip():
@@ -52,15 +52,15 @@ class InputEventManager:
                     self.logger.info(f"Active Module Response: {response}")
                 else:
                     self.logger.warning("No transcribed text received.")
-                # Wait for the spacebar to be released before continuing
-                while keyboard.is_pressed('space') and not self._stop_event.is_set():
+                # Wait for the page down to be released before continuing
+                while keyboard.is_pressed('page down') and not self._stop_event.is_set():
                     time.sleep(0.1)
                 
             time.sleep(0.05)
 
     def process_voice_command(self) -> str:
         """
-        Triggers the RecordingManager to capture audio while the spacebar is held,
+        Triggers the RecordingManager to capture audio while the page down is held,
         then delegates the audio to SpeechToTextModule via the AIManager for transcription.
 
         Returns:
@@ -68,7 +68,7 @@ class InputEventManager:
         """
         temp_audio_path = os.path.join(self.temp_dir, "last_voice_command.wav")
 
-        self.logger.info("Space bar pressed! Initiating voice command processing...")
+        self.logger.info("page down pressed! Initiating voice command processing...")
 
         # 1. Record Audio
         global_response = self.active_module.global_response_module
@@ -76,7 +76,7 @@ class InputEventManager:
         try:
             recording_manager_instance.record_audio(
                 temp_audio_path,
-                is_recording_func=lambda: keyboard.is_pressed('space') and not self._stop_event.is_set()
+                is_recording_func=lambda: keyboard.is_pressed('page down') and not self._stop_event.is_set()
             )
             self.logger.info("Voice command recorded.")
         except Exception as e:

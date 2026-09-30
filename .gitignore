@@ -9,6 +9,7 @@ results.txt
 /.venv
 /junk
 /checkpoints
+/logs
 /src/config/configSensitive.yaml
 .grokignore
 AGENTS.md

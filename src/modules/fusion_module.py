@@ -1,5 +1,6 @@
 """Merge a fast local answer with a slower cloud answer while speech is already playing."""
 
+import json
 import math
 import threading
 import time
@@ -11,6 +12,7 @@ HARD_PUNCTUATION = ".?!"
 PHRASE_PRIORITY = 10
 PHRASE_LIFETIME = 120.0
 FAILURE_TEXT = "Failed to get response from the model."
+REPLAY_PREFIX = "FUSION_REPLAY "
 
 
 def split_ready_phrases(buffer):
@@ -100,13 +102,11 @@ def build_merge_prompt(local_response, cloud_response, spoken_text):
     """Prompt the local model to continue from what has already been said."""
     return (
         f"You are a helpful assistant. "
-        f"You are in the middle of speaking this to the user: '{local_response}'. "
-        f"The truth is: '{cloud_response}'. "
         f"You have already said this part of a response: '{spoken_text}'. Don't say it again. Continue from here "
-        f"Pick up seamlessly from where you left off, merging the new information from the truth. "
-        f"Do not repeat what you already said. Just continue the sentence."
-        f"Also, if there is any conflict between your response and the truth, choose the truth."
-        f"If you have stated any information that was shown to be incorrect, correct it in the merged response."
+        f"The truth is: '{cloud_response}'. "
+        f"Pick up seamlessly from where you left off, using the new information from the truth. "
+        f"Do not repeat what you already said. Just continue the response."
+        f"If you have stated any information that is conflicting with the truth, correct it in favor of the truth."
     )
 
 
@@ -158,13 +158,17 @@ class FusionModule:
         self.clock = clock or time.monotonic
         self.listener = listener
         self.wait_timeout = wait_timeout
-        self.chars_per_second, self.merge_wait_s, self.edge_enabled = _settings(config, edge_enabled)
+        self.chars_per_second, self.merge_wait_s, self.edge_enabled, self._config = _settings(
+            config, edge_enabled
+        )
         self._lock = threading.Lock()
         self._reset_state()
 
     def handle(self, text_input):
         """Run one active request. Returns the text handed to speech."""
         self._reset_state()
+        self._t0 = self.clock()
+        self._prompt = text_input
         frame = self._snapshot_frame()
         self.grm.bind_playback_callback(self.response_id, self._on_playback)
 
@@ -172,6 +176,7 @@ class FusionModule:
         cloud_thread = None
         try:
             if self.edge_enabled:
+                self.edge_mllm_used = _configured_model(self._config, "ollama_llm", "model")
                 local_thread = threading.Thread(
                     target=self._run_local, args=(text_input, frame), daemon=True
                 )
@@ -190,6 +195,7 @@ class FusionModule:
 
             mode = self._read_mode()
             if mode == "cloud":
+                self._route = "cloud-only" if not self.edge_enabled else "cloud-first"
                 self._finish_cloud_only(local_thread, cloud_thread)
             elif mode == "local":
                 self._finish_local_first(local_thread, cloud_thread)
@@ -199,9 +205,13 @@ class FusionModule:
                     local_thread.join(timeout=self.wait_timeout)
                 cloud_thread.join(timeout=self.wait_timeout)
                 if self.cloud_raw.strip():
+                    self._route = "cloud-only"
                     self._speak_text_as_phrases(self.cloud_raw, "cloud")
                 elif self.local_raw.strip():
+                    self._route = "local-only"
                     self._flush_local_remainder()
+                else:
+                    self._route = "failure"
         finally:
             self._stop_local.set()
             if local_thread is not None and local_thread.is_alive():
@@ -211,7 +221,9 @@ class FusionModule:
 
         spoken = " ".join(phrase["text"] for phrase in self._handed if not phrase["cancelled"])
         if not spoken.strip():
-            return FAILURE_TEXT
+            self._route = "failure"
+            spoken = FAILURE_TEXT
+        self._log_result(spoken)
         return spoken
 
     def _finish_cloud_only(self, local_thread, cloud_thread):
@@ -241,8 +253,10 @@ class FusionModule:
         if local_thread is not None:
             local_thread.join(timeout=self.wait_timeout)
         if self.cloud_raw.strip():
+            self._route = "local-first"
             self._merge()
         else:
+            self._route = "local-only"
             self._flush_local_remainder()
 
     def _merge(self):
@@ -267,6 +281,11 @@ class FusionModule:
             )
         snapped = callback_index if measured is not None else time_index
         snapped = _extend_inflight(snapped, self.local_phrases, playback)
+        self._cut = {
+            "callback_index": callback_index,
+            "time_index": time_index,
+            "snapped": snapped,
+        }
         self._emit_fragment_up_to(snapped)
 
         keep = -1
@@ -304,6 +323,7 @@ class FusionModule:
             self.logger.error(f"Merge model failed: {exc}")
             produced = False
         if not produced:
+            self._route = "merge-fallback"
             self.logger.warning("Merge produced no text. Speaking the cloud response.")
             self._speak_text_as_phrases(self.cloud_raw, "cloud")
 
@@ -313,10 +333,12 @@ class FusionModule:
             stream = self._edge_call()(prompt, frame)
             if stream is None:
                 return
+            leg_t0 = self.clock()
             for chunk in stream:
                 stopped = self._stop_local.is_set()
                 text = _chunk_text(chunk)
                 if text:
+                    self._edge_events.append(_timed_chunk(text, leg_t0, self.clock()))
                     self._trace({"type": "token", "source": "local", "text": text})
                     with self._lock:
                         self.local_raw += text
@@ -335,10 +357,12 @@ class FusionModule:
             stream = self._cloud_call()(prompt, frame)
             if stream is None:
                 return
+            leg_t0 = self.clock()
             for chunk in stream:
                 text = _chunk_text(chunk)
                 if not text:
                     continue
+                self._cloud_events.append(_timed_chunk(text, leg_t0, self.clock()))
                 self._trace({"type": "token", "source": "cloud", "text": text})
                 with self._lock:
                     self.cloud_raw += text
@@ -349,6 +373,8 @@ class FusionModule:
             self.logger.error(f"Cloud stream failed: {exc}")
         finally:
             _close_stream(stream)
+            if self._cloud_done_at is None:
+                self._cloud_done_at = self.clock()
             self._cloud_done.set()
             self._mark_finished("cloud")
 
@@ -468,17 +494,20 @@ class FusionModule:
         self._send(phrase)
 
     def _consume_merge(self, prompt):
+        self.llm_used = _configured_model(self._config, "ollama_llm", "model")
         stream = self._merge_call()(prompt)
         produced = False
         if stream is None:
             return False
         buffer = ""
+        leg_t0 = self.clock()
         try:
             for chunk in stream:
                 text = _chunk_text(chunk)
                 if not text:
                     continue
                 produced = True
+                self._merge_events.append(_timed_chunk(text, leg_t0, self.clock()))
                 self._trace({"type": "token", "source": "merge", "text": text})
                 buffer += text
                 phrases, buffer = split_ready_phrases(buffer)
@@ -500,6 +529,8 @@ class FusionModule:
 
     def _emit_other(self, text, source):
         with self._lock:
+            if source == "merge" and self._merge_first_at is None:
+                self._merge_first_at = self.clock()
             phrase = self._allocate_phrase(text, source, None, None)
         self._send(phrase)
 
@@ -538,6 +569,11 @@ class FusionModule:
             return
         with self._lock:
             self._playback = dict(payload)
+            if payload.get("event") == "done":
+                phrase = payload.get("phrase") or ""
+                duration = payload.get("phrase_duration_s") or 0
+                if phrase and duration > 0:
+                    self._playback_samples.append((len(phrase), float(duration)))
         self._trace({"type": "playback", **payload})
 
     def _time_spoken_chars(self, now, length):
@@ -559,17 +595,112 @@ class FusionModule:
     def _edge_call(self):
         if self._edge_stream is not None:
             return self._edge_stream
-        return _production_edge_stream
+
+        def _stream(prompt, frame):
+            yield from _production_edge_stream(prompt, frame, on_model=self._note_edge_model)
+        return _stream
 
     def _cloud_call(self):
         if self._cloud_stream is not None:
             return self._cloud_stream
-        return _production_cloud_stream
+
+        def _stream(prompt, frame):
+            yield from _production_cloud_stream(prompt, frame, on_model=self._note_cloud_model)
+        return _stream
 
     def _merge_call(self):
         if self._merge_stream is not None:
             return self._merge_stream
-        return _production_merge_stream
+
+        def _stream(prompt):
+            yield from _production_merge_stream(prompt, on_model=self._note_llm)
+        return _stream
+
+    def _note_edge_model(self, name):
+        if name:
+            self.edge_mllm_used = name
+
+    def _note_llm(self, name):
+        if name:
+            self.llm_used = name
+
+    def _note_cloud_model(self, name):
+        if name and not self.cloud_model_used:
+            self.cloud_model_used = name
+
+    def _elapsed(self, moment):
+        if moment is None or self._t0 is None:
+            return None
+        return round(max(0.0, moment - self._t0), 4)
+
+    def _log_result(self, spoken):
+        """Log the route, model text, and one line the fusion replay can play."""
+        try:
+            record = self._replay_record(spoken)
+            cut = record["cut"] or {}
+            timings = record["timings"]
+            self.logger.info(
+                f"Fusion result route={record['route']} response_id={record['response_id']} "
+                f"edge_mllm={record['edge_mllm']} llm={record['llm']} cloud_model={record['cloud_model']} "
+                f"local_first={timings['local_first_s']} cloud_done={timings['cloud_done_s']} "
+                f"cut_callback={cut.get('callback_index')} cut_time={cut.get('time_index')} "
+                f"snapped={cut.get('snapped')}"
+            )
+            self.logger.info(f"Fusion local: {record['local_response']}")
+            self.logger.info(f"Fusion cloud: {record['cloud_response']}")
+            self.logger.info(f"Fusion merge: {record['merge_response']}")
+            self.logger.info(f"Fusion spoken: {record['spoken']}")
+            payload = json.dumps(record, ensure_ascii=False, separators=(",", ":"))
+            self.logger.info(f"{REPLAY_PREFIX}{payload}")
+        except Exception as exc:
+            self.logger.error(f"Could not write the fusion record: {exc}")
+
+    def _replay_record(self, spoken):
+        with self._lock:
+            samples = list(self._playback_samples)
+        sample_chars = sum(count for count, _duration in samples)
+        sample_seconds = sum(duration for _count, duration in samples)
+        if sample_seconds > 0:
+            actual = sample_chars / sample_seconds
+        else:
+            actual = self.chars_per_second
+        cloud_model = self.cloud_model_used
+        if cloud_model is None and self.cloud_raw.strip():
+            cloud_model = _configured_cloud_model(self._config)
+        return {
+            "prompt": self._prompt,
+            "route": self._route or "failure",
+            "response_id": self.response_id,
+            "edge_enabled": bool(self.edge_enabled),
+            "edge_mllm": self.edge_mllm_used if self.edge_enabled else None,
+            "llm": self.llm_used,
+            "cloud_model": cloud_model,
+            "assumed_tts_chars_per_second": self.chars_per_second,
+            "actual_tts_chars_per_second": round(actual, 4),
+            "merge_first_phrase_p90_s": self.merge_wait_s,
+            "edge_events": list(self._edge_events),
+            "cloud_events": list(self._cloud_events),
+            "merge_events": list(self._merge_events),
+            "local_response": self.local_raw,
+            "cloud_response": self.cloud_raw,
+            "merge_response": "".join(event["text"] for event in self._merge_events),
+            "spoken": spoken,
+            "cut": dict(self._cut) if self._cut else None,
+            "timings": {
+                "local_first_s": self._elapsed(self.local_first),
+                "cloud_done_s": self._elapsed(self._cloud_done_at),
+                "merge_first_phrase_s": self._elapsed(self._merge_first_at),
+            },
+            "phrases": [
+                {
+                    "order": phrase["order"],
+                    "source": phrase["source"],
+                    "text": phrase["text"],
+                    "cancelled": phrase["cancelled"],
+                }
+                for phrase in self._handed
+            ],
+        }
 
     def _set_mode_locked(self, mode):
         if self.mode is None:
@@ -616,6 +747,19 @@ class FusionModule:
         self._stop_local = threading.Event()
         self._mode_event = threading.Event()
         self._cloud_done = threading.Event()
+        self._t0 = None
+        self._prompt = ""
+        self._route = None
+        self._cut = None
+        self._edge_events = []
+        self._cloud_events = []
+        self._merge_events = []
+        self._cloud_done_at = None
+        self._merge_first_at = None
+        self._playback_samples = []
+        self.edge_mllm_used = None
+        self.llm_used = None
+        self.cloud_model_used = None
 
 
 def _settings(config, edge_enabled):
@@ -629,7 +773,27 @@ def _settings(config, edge_enabled):
     merge_wait_s = float(fusion.get("merge_first_phrase_p90_s", 0.5))
     if edge_enabled is None:
         edge_enabled = bool(ollama.get("ollama_llm_enabled", False))
-    return chars_per_second, merge_wait_s, edge_enabled
+    return chars_per_second, merge_wait_s, edge_enabled, config
+
+
+def _configured_model(config, section, key):
+    if not config:
+        return None
+    return (config.get(section) or {}).get(key)
+
+
+def _configured_cloud_model(config):
+    if not config:
+        return None
+    api = config.get("openrouter_api") or {}
+    models = list(api.get("model_priority") or [])
+    if models:
+        return models[0]
+    return api.get("model")
+
+
+def _timed_chunk(text, leg_t0, now):
+    return {"text": text, "t": round(max(0.0, now - leg_t0), 4)}
 
 
 def _chunk_text(chunk):
@@ -680,8 +844,9 @@ def _extend_inflight(snapped, phrases, playback):
     return snapped
 
 
-def _production_edge_stream(prompt, frame):
+def _production_edge_stream(prompt, frame, on_model=None):
     from modules.ai_manager import AI_manager
+    _report_edge_model(AI_manager, on_model)
     result = AI_manager.execute_module(
         lambda module: module.__class__.__name__ == "EdgeMLLMModule",
         "fusion_edge",
@@ -695,8 +860,9 @@ def _production_edge_stream(prompt, frame):
     yield from result
 
 
-def _production_merge_stream(prompt):
+def _production_merge_stream(prompt, on_model=None):
     from modules.ai_manager import AI_manager
+    _report_edge_model(AI_manager, on_model)
     result = AI_manager.execute_module(
         lambda module: module.__class__.__name__ == "EdgeMLLMModule",
         "fusion_merge",
@@ -708,7 +874,18 @@ def _production_merge_stream(prompt):
     yield from result
 
 
-def _production_cloud_stream(prompt, frame):
+def _report_edge_model(ai_manager, on_model):
+    if on_model is None:
+        return
+    module = ai_manager.get_module(lambda item: item.__class__.__name__ == "EdgeMLLMModule")
+    if module is None:
+        return
+    name = getattr(module, "model_name", None)
+    if name:
+        on_model(name)
+
+
+def _production_cloud_stream(prompt, frame, on_model=None):
     from config.config import get_config
     from modules.ai_manager import AI_manager
 
@@ -739,6 +916,8 @@ def _production_cloud_stream(prompt, frame):
         try:
             for chunk in result:
                 if chunk:
+                    if not got and on_model is not None:
+                        on_model(model_name)
                     got = True
                     yield chunk
         except Exception as exc:

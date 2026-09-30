@@ -1,3 +1,10 @@
+logging:
+  file_enabled: true
+  # Each run creates logs/{name}_{description}_{YYYY-MM-DD_HH-MM-SS}/
+  # with smartsight.log and a copy of the effective config.
+  name: smartsight
+  description: active session
+
 ollama_llm:
   ollama_llm_enabled: True
   model: "gemma3:4b"
@@ -11,7 +18,8 @@ yolo_vision:
 
 openrouter_api:
   model_priority:
-    - "openai/gpt-5.6-luna"
+    - "qwen/qwen3-vl-8b-thinking"
+    # - "openai/gpt-5.6-luna"
     # - "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
     # - "dots-studio/dots-3-note-preview:free"
     # - "nex-agi/nex-n2.5-mini:free"

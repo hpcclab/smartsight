@@ -5,11 +5,15 @@ tail, and the merge are shown in different colors. No model is loaded.
 
     python Testing/fusion_replay.py
     python Testing/fusion_replay.py --scenario path.json
+    python Testing/fusion_replay.py --log logs/<run>/smartsight.log
+    python Testing/fusion_replay.py --log logs/<run> --index 0
 """
 
 import argparse
 import json
 import os
+import re
+import shutil
 import sys
 import threading
 import time
@@ -20,7 +24,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from modules.fusion_module import FusionModule
+from modules.fusion_module import REPLAY_PREFIX, FusionModule
 
 CYAN = "\033[36m"
 YELLOW = "\033[33m"
@@ -37,6 +41,89 @@ ANSI = {
     "skip": RED,
     "merge": MAGENTA,
 }
+
+_ANSI_RE = re.compile(r"\033\[[0-9;]*m")
+
+
+def _term_size():
+    try:
+        size = shutil.get_terminal_size(fallback=(120, 24))
+        columns, lines = size.columns, size.lines
+    except OSError:
+        columns, lines = 120, 24
+    return max(40, columns), max(2, lines)
+
+
+def _section_rows(label, text, width):
+    """Wrap one labeled transcript into terminal rows.
+
+    Newlines start a new row. Other text wraps so the visible width of each
+    row is at most ``width``. Color codes take no columns. Continuation rows
+    indent under the label, a row that starts inside an open color reopens
+    it, and a row that opened a color ends in reset.
+    """
+    width = max(len(label) + 1, width)
+    content_width = width - len(label)
+    indent = " " * len(label)
+    rows = []
+    pieces = []
+    visible = 0
+    active = ""
+    first = True
+
+    def close_row():
+        nonlocal pieces, visible, first
+        body = "".join(pieces)
+        if body and active and not body.endswith(RESET):
+            body += RESET
+        rows.append((label if first else indent) + body)
+        pieces = []
+        visible = 0
+        first = False
+
+    def open_color():
+        if active and not pieces:
+            pieces.append(active)
+
+    index = 0
+    text = text or ""
+    while index < len(text):
+        if text.startswith("\r\n", index):
+            close_row()
+            index += 2
+            continue
+        if text[index] in "\n\r":
+            close_row()
+            index += 1
+            continue
+        match = _ANSI_RE.match(text, index)
+        if match:
+            seq = match.group()
+            open_color()
+            pieces.append(seq)
+            params = seq[2:-1]
+            active = "" if params in ("", "0") else seq
+            index = match.end()
+            continue
+        if visible >= content_width:
+            close_row()
+            continue
+        open_color()
+        pieces.append(text[index])
+        visible += 1
+        index += 1
+    if pieces or not rows:
+        close_row()
+    return rows
+
+
+def _hud_rows(edge, merge, cloud, cut, width):
+    rows = []
+    rows.extend(_section_rows("EDGE  ", edge, width))
+    rows.extend(_section_rows("MERGE ", merge, width))
+    rows.extend(_section_rows("CLOUD ", cloud, width))
+    rows.extend(_section_rows("", cut, width))
+    return rows
 
 BUILTIN = {
     "assumed_tts_chars_per_second": 40,
@@ -315,24 +402,97 @@ def _scripted(tokens, first_delay, token_delay, sleep):
     return _stream
 
 
-def run_scenario(scenario, sleep=time.sleep):
-    display = Display()
-    playback = PlaybackSimulator(scenario["actual_tts_chars_per_second"], sleep=sleep)
+def _scripted_events(events, sleep, clock=None):
+    """Yield saved chunks, waiting until each chunk's own-stream timestamp."""
+    clock = clock or time.monotonic
+
+    def _stream(*_args, **_kwargs):
+        started = clock()
+        for event in events or []:
+            wait = float(event.get("t") or 0) - (clock() - started)
+            if wait > 0:
+                sleep(wait)
+            yield event.get("text") or ""
+    return _stream
+
+
+def _stream_for(scenario, events_key, tokens_key, first_key, delay_key, sleep):
+    if events_key in scenario:
+        return _scripted_events(scenario.get(events_key) or [], sleep)
+    return _scripted(scenario[tokens_key], scenario[first_key], scenario[delay_key], sleep)
+
+
+def load_replay_records(text):
+    """Return every fusion record embedded in a SmartSight log."""
+    records = []
+    for line in text.splitlines():
+        index = line.find(REPLAY_PREFIX)
+        if index < 0:
+            continue
+        records.append(json.loads(line[index + len(REPLAY_PREFIX):].strip()))
+    return records
+
+
+def scenario_from_record(record):
+    """Turn one logged fusion response into the dict the replay already plays."""
+    assumed = float(record["assumed_tts_chars_per_second"])
+    actual = float(record.get("actual_tts_chars_per_second") or 0)
+    if actual <= 0:
+        actual = assumed if assumed > 0 else 15.0
+    if assumed <= 0:
+        assumed = actual
+    return {
+        "assumed_tts_chars_per_second": assumed,
+        "actual_tts_chars_per_second": actual,
+        "merge_first_phrase_p90_s": record["merge_first_phrase_p90_s"],
+        "prompt": record.get("prompt") or "",
+        "edge_enabled": record.get("edge_enabled", True),
+        "edge_events": record.get("edge_events") or [],
+        "cloud_events": record.get("cloud_events") or [],
+        "merge_events": record.get("merge_events") or [],
+        "edge_mllm": record.get("edge_mllm"),
+        "llm": record.get("llm"),
+        "cloud_model": record.get("cloud_model"),
+    }
+
+
+def _fusion_for(scenario, playback, sleep, listener=None):
+    edge_enabled = scenario.get("edge_enabled", True)
+    ollama = {"ollama_llm_enabled": edge_enabled}
+    model = scenario.get("edge_mllm") or scenario.get("llm")
+    if model:
+        ollama["model"] = model
+    api = {}
+    if scenario.get("cloud_model"):
+        api["model_priority"] = [scenario["cloud_model"]]
     config = {
         "fusion": {"merge_first_phrase_p90_s": scenario["merge_first_phrase_p90_s"]},
         "piper_tts": {"chars_per_second": scenario["assumed_tts_chars_per_second"]},
-        "ollama_llm": {"ollama_llm_enabled": True},
+        "ollama_llm": ollama,
+        "openrouter_api": api,
     }
-    fusion = FusionModule(
+    return FusionModule(
         playback,
-        edge_stream=_scripted(scenario["edge_tokens"], scenario["edge_first_delay_s"], scenario["edge_token_delay_s"], sleep),
-        cloud_stream=_scripted(scenario["cloud_tokens"], scenario["cloud_first_delay_s"], scenario["cloud_token_delay_s"], sleep),
-        merge_stream=_scripted(scenario["merge_tokens"], scenario["merge_first_delay_s"], scenario["merge_token_delay_s"], sleep),
+        edge_stream=_stream_for(
+            scenario, "edge_events", "edge_tokens", "edge_first_delay_s", "edge_token_delay_s", sleep
+        ),
+        cloud_stream=_stream_for(
+            scenario, "cloud_events", "cloud_tokens", "cloud_first_delay_s", "cloud_token_delay_s", sleep
+        ),
+        merge_stream=_stream_for(
+            scenario, "merge_events", "merge_tokens", "merge_first_delay_s", "merge_token_delay_s", sleep
+        ),
         config=config,
         frame_source=lambda: None,
-        listener=display.apply,
-        edge_enabled=True,
+        listener=listener,
+        edge_enabled=edge_enabled,
     )
+
+
+def run_scenario(scenario, sleep=time.sleep):
+    display = Display()
+    playback = PlaybackSimulator(scenario["actual_tts_chars_per_second"], sleep=sleep)
+    fusion = _fusion_for(scenario, playback, sleep, listener=display.apply)
     try:
         spoken = fusion.handle(scenario.get("prompt", "What is in front of me?"))
         playback.wait_until_idle(timeout=30)
@@ -343,37 +503,53 @@ def run_scenario(scenario, sleep=time.sleep):
 
 def _print_live(display, lines_drawn):
     edge, merge, cloud, cut = display.ansi_lines()
-    lines = [
-        f"EDGE  {edge}",
-        f"MERGE {merge}",
-        f"CLOUD {cloud}",
-        cut,
-    ]
+    columns, height = _term_size()
+    rows = _hud_rows(edge, merge, cloud, cut, columns)
+    limit = max(1, height - 1)
+    if len(rows) > limit:
+        rows = rows[-limit:]
     if lines_drawn:
         sys.stdout.write(f"\033[{lines_drawn}A")
-    for line in lines:
-        sys.stdout.write("\033[2K" + line + "\n")
+    sys.stdout.write("\033[J")
+    for line in rows:
+        sys.stdout.write("\033[2K" + line + RESET + "\n")
     sys.stdout.flush()
-    return len(lines)
+    return len(rows)
+
+
+def _scenario_from_args(parser, args):
+    if args.log and args.scenario:
+        parser.error("--log and --scenario cannot be used together")
+    if args.log:
+        path = Path(args.log)
+        if path.is_dir():
+            path = path / "smartsight.log"
+        if not path.is_file():
+            parser.error(f"No log file at {path}")
+        records = load_replay_records(path.read_text(encoding="utf-8"))
+        if not records:
+            parser.error(f"No {REPLAY_PREFIX.strip()} records in {path}")
+        try:
+            record = records[args.index]
+        except IndexError:
+            parser.error(f"Replay index {args.index} is outside {len(records)} record(s)")
+        return scenario_from_record(record)
+    if args.scenario:
+        return json.loads(Path(args.scenario).read_text(encoding="utf-8"))
+    return BUILTIN
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Replay the fusion system with scripted text.")
     parser.add_argument("--scenario", help="JSON file with token timings. Defaults to a built-in scene.")
+    parser.add_argument("--log", help="SmartSight log file or run folder containing FUSION_REPLAY lines.")
+    parser.add_argument("--index", type=int, default=-1, help="Which logged response to play. Default: the last one.")
     args = parser.parse_args(argv)
-    if args.scenario:
-        scenario = json.loads(Path(args.scenario).read_text(encoding="utf-8"))
-    else:
-        scenario = BUILTIN
+    scenario = _scenario_from_args(parser, args)
     enable_vt()
     print("cyan buffer | yellow sent to speech | green spoken | red skipped | magenta merge")
     display = Display()
     playback = PlaybackSimulator(scenario["actual_tts_chars_per_second"])
-    config = {
-        "fusion": {"merge_first_phrase_p90_s": scenario["merge_first_phrase_p90_s"]},
-        "piper_tts": {"chars_per_second": scenario["assumed_tts_chars_per_second"]},
-        "ollama_llm": {"ollama_llm_enabled": True},
-    }
     drawn = {"n": 0}
     lock = threading.Lock()
 
@@ -382,16 +558,8 @@ def main(argv=None):
         with lock:
             drawn["n"] = _print_live(display, drawn["n"])
 
-    fusion = FusionModule(
-        playback,
-        edge_stream=_scripted(scenario["edge_tokens"], scenario["edge_first_delay_s"], scenario["edge_token_delay_s"], time.sleep),
-        cloud_stream=_scripted(scenario["cloud_tokens"], scenario["cloud_first_delay_s"], scenario["cloud_token_delay_s"], time.sleep),
-        merge_stream=_scripted(scenario["merge_tokens"], scenario["merge_first_delay_s"], scenario["merge_token_delay_s"], time.sleep),
-        config=config,
-        frame_source=lambda: None,
-        listener=listener,
-        edge_enabled=True,
-    )
+    fusion = _fusion_for(scenario, playback, time.sleep, listener=listener)
+    sys.stdout.write("\033[?25l")
     try:
         spoken = fusion.handle(scenario.get("prompt", "What is in front of me?"))
         playback.wait_until_idle(timeout=30)
@@ -399,6 +567,8 @@ def main(argv=None):
             _print_live(display, drawn["n"])
     finally:
         playback.stop()
+        sys.stdout.write("\033[?25h")
+        sys.stdout.flush()
     edge, merge = display.markers()
     print("FINAL EDGE: " + edge)
     print("FINAL MERGE: " + merge)

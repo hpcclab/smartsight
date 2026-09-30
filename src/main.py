@@ -9,6 +9,7 @@ from modules.input_event_manager import InputEventManager
 import logging
 import sys
 from config.config import get_config
+from utilities.logging_setup import configure_file_logging
 config = get_config()
 
 root = logging.getLogger()
@@ -20,6 +21,7 @@ if not root.handlers:
     root.addHandler(handler)
 root.setLevel(logging.INFO)
 _configured = True
+configure_file_logging(config)
 
 
 # Start the camera stream in a background thread
