@@ -29,7 +29,7 @@ face_recognition:
   face_recognition_enabled: True
   encodings_path: "models/facial_recognition/encodings.pickle"
   cascade_path: "models/facial_recognition/haarcascade_frontalface_default.xml"
-  tolerance: 0.5
+  tolerance: 0.45
 
 piper_tts:
   model_path: "models/piper/en_US-lessac-low.onnx"
