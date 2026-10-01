@@ -38,14 +38,14 @@ piper_tts:
   sample_rate: 16000
   temp_path: "temp/piper"
   # Paper normal rate (characters/second). Testing/benchmark_piper_speed.py --write replaces this.
-  chars_per_second: 15
+  chars_per_second: 15.66
 
 fusion:
   enabled: true
   # The local leg runs when ollama_llm.ollama_llm_enabled is true.
   # Paper reported first-phrase estimate. Testing/benchmark_merge_latency.py --write replaces this
   # with the local 90th percentile.
-  merge_first_phrase_p90_s: 0.5
+  merge_first_phrase_p90_s: 0.146
 
 passive_detection:
   passive_detection_enabled: True
@@ -60,7 +60,7 @@ recording:
   chunk_size: 1024
 
 speech_to_text:
-  model_size: "medium"  # Options: tiny, base, small, medium, large
+  model_size: "small"  # Options: tiny, base, small, medium, large
   use_fp16: False
 
 input:

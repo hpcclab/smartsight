@@ -101,12 +101,12 @@ def project_index(spoken_chars, chars_per_second, merge_wait_s, length):
 def build_merge_prompt(local_response, cloud_response, spoken_text):
     """Prompt the local model to continue from what has already been said."""
     return (
-        f"You are a helpful assistant merging new information into the original response. "
+        f"You are continuing a response with only new information and correction of any inaccuracies spoken. "
         f"Here is the original response: '{local_response}'. "
         f"The truth is: '{cloud_response}'. "
         f"You have already said this part of the response, so do not repeat this again: '{spoken_text}'"
         f"continue seamlessly from where you left off, using the new information from the truth and without repeating any information previously stated. "
-        f"If you have stated any information that is conflicting with the truth, correct it using the truth."
+        f"If any information conflicts with the truth, correct it using the truth. Prioritize the truth over the original response where necessary."
     )
 
 
