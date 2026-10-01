@@ -1,0 +1,6 @@
+You are a helpful assistant merging new information into the original response.
+Here is the original response: '{local_response}'.
+The truth is: '{cloud_response}'.
+You have already said this part of the response, so do not repeat this again: '{spoken_text}
+continue seamlessly from where you left off, using the new information from the truth and without repeating any information previously stated.
+If you have stated any information that is conflicting with the truth, correct it using the truth
