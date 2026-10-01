@@ -7,6 +7,7 @@ tail, and the merge are shown in different colors. No model is loaded.
     python Testing/fusion_replay.py --scenario path.json
     python Testing/fusion_replay.py --log logs/<run>/smartsight.log
     python Testing/fusion_replay.py --log logs/<run> --index 0
+    python Testing/fusion_replay.py --log new
 """
 
 import argparse
@@ -17,6 +18,7 @@ import shutil
 import sys
 import threading
 import time
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +45,7 @@ ANSI = {
 }
 
 _ANSI_RE = re.compile(r"\033\[[0-9;]*m")
+_RUN_STAMP = re.compile(r"(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})$")
 
 
 def _term_size():
@@ -517,15 +520,50 @@ def _print_live(display, lines_drawn):
     return len(rows)
 
 
+def _run_sort_key(path):
+    """Order run folders by the stamp in the name, otherwise by mtime."""
+    match = _RUN_STAMP.search(path.name)
+    if match:
+        return match.group(1)
+    return datetime.fromtimestamp(path.stat().st_mtime).strftime("%Y-%m-%d_%H-%M-%S")
+
+
+def _newest_log_file(logs_root=None):
+    """Return the newest ``*.log`` in the newest run folder, or None.
+
+    ``logs_root`` defaults to the repo ``logs/`` directory. Folder order uses
+    the ``YYYY-MM-DD_HH-MM-SS`` suffix. Inside the winner, the newest log file
+    by modification time wins. ``config.yaml`` and other files are ignored.
+    """
+    root = Path(logs_root) if logs_root is not None else ROOT / "logs"
+    if not root.is_dir():
+        return None
+    dirs = [path for path in root.iterdir() if path.is_dir()]
+    if not dirs:
+        return None
+    newest_dir = max(dirs, key=_run_sort_key)
+    logs = [path for path in newest_dir.iterdir() if path.is_file() and path.suffix == ".log"]
+    if not logs:
+        return None
+    return max(logs, key=lambda path: path.stat().st_mtime)
+
+
 def _scenario_from_args(parser, args):
     if args.log and args.scenario:
         parser.error("--log and --scenario cannot be used together")
     if args.log:
-        path = Path(args.log)
-        if path.is_dir():
-            path = path / "smartsight.log"
-        if not path.is_file():
-            parser.error(f"No log file at {path}")
+        # "new" is always the keyword for the newest run, never a file or directory.
+        if args.log == "new":
+            path = _newest_log_file()
+            if path is None:
+                parser.error(f"No log file under {ROOT / 'logs'}")
+            print(path)
+        else:
+            path = Path(args.log)
+            if path.is_dir():
+                path = path / "smartsight.log"
+            if not path.is_file():
+                parser.error(f"No log file at {path}")
         records = load_replay_records(path.read_text(encoding="utf-8"))
         if not records:
             parser.error(f"No {REPLAY_PREFIX.strip()} records in {path}")
@@ -542,7 +580,10 @@ def _scenario_from_args(parser, args):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Replay the fusion system with scripted text.")
     parser.add_argument("--scenario", help="JSON file with token timings. Defaults to a built-in scene.")
-    parser.add_argument("--log", help="SmartSight log file or run folder containing FUSION_REPLAY lines.")
+    parser.add_argument(
+        "--log",
+        help="SmartSight log file, run folder, or 'new' for the newest log under logs/.",
+    )
     parser.add_argument("--index", type=int, default=-1, help="Which logged response to play. Default: the last one.")
     args = parser.parse_args(argv)
     scenario = _scenario_from_args(parser, args)

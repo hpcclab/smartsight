@@ -60,7 +60,7 @@ recording:
   chunk_size: 1024
 
 speech_to_text:
-  model_size: "base"  # Options: tiny, base, small, medium, large
+  model_size: "medium"  # Options: tiny, base, small, medium, large
   use_fp16: False
 
 input:

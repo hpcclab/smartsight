@@ -101,12 +101,12 @@ def project_index(spoken_chars, chars_per_second, merge_wait_s, length):
 def build_merge_prompt(local_response, cloud_response, spoken_text):
     """Prompt the local model to continue from what has already been said."""
     return (
-        f"You are a helpful assistant. "
-        f"You have already said this part of a response: '{spoken_text}'. Don't say it again. Continue from here "
+        f"You are a helpful assistant merging new information into the original response. "
+        f"Here is the original response: '{local_response}'. "
         f"The truth is: '{cloud_response}'. "
-        f"Pick up seamlessly from where you left off, using the new information from the truth. "
-        f"Do not repeat what you already said. Just continue the response."
-        f"If you have stated any information that is conflicting with the truth, correct it in favor of the truth."
+        f"You have already said this part of the response, so do not repeat this again: '{spoken_text}'"
+        f"continue seamlessly from where you left off, using the new information from the truth and without repeating any information previously stated. "
+        f"If you have stated any information that is conflicting with the truth, correct it using the truth."
     )
 
 
@@ -168,7 +168,8 @@ class FusionModule:
         """Run one active request. Returns the text handed to speech."""
         self._reset_state()
         self._t0 = self.clock()
-        self._prompt = text_input
+
+        self._prompt = f'Use the image to briefly answer the following query: {text_input}'
         frame = self._snapshot_frame()
         self.grm.bind_playback_callback(self.response_id, self._on_playback)
 
@@ -178,7 +179,7 @@ class FusionModule:
             if self.edge_enabled:
                 self.edge_mllm_used = _configured_model(self._config, "ollama_llm", "model")
                 local_thread = threading.Thread(
-                    target=self._run_local, args=(text_input, frame), daemon=True
+                    target=self._run_local, args=(self._prompt, frame), daemon=True
                 )
                 local_thread.start()
             else:
@@ -186,7 +187,7 @@ class FusionModule:
                     self._set_mode_locked("cloud")
 
             cloud_thread = threading.Thread(
-                target=self._run_cloud, args=(text_input, frame), daemon=True
+                target=self._run_cloud, args=(self._prompt, frame), daemon=True
             )
             cloud_thread.start()
 

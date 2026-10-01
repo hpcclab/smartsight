@@ -3,9 +3,11 @@ from pathlib import Path
 
 _CONFIG_PATH = Path(__file__).parent / "config.yaml"
 _CONFIG_SENSITIVE_PATH = Path(__file__).parent / "configSensitive.yaml"
+_COMMANDS_PATH = Path(__file__).parent / "commands_config.yaml"
 
-# Internal cache so the file is only read once
+# Internal cache so each file is only read once
 _config_cache = None
+_commands_cache = None
 
 
 def _load_config():
@@ -43,3 +45,25 @@ def get_config():
     Returns the parsed YAML as a Python dict.
     """
     return _load_config()
+
+
+def _load_commands_config():
+    """Load the command-rule YAML file into memory."""
+    global _commands_cache
+
+    if _commands_cache is None:
+        if not _COMMANDS_PATH.exists():
+            raise FileNotFoundError(f"Commands config file not found: {_COMMANDS_PATH}")
+
+        with open(_COMMANDS_PATH, "r", encoding="utf-8") as f:
+            _commands_cache = yaml.safe_load(f) or {}
+
+    return _commands_cache
+
+
+def get_commands_config():
+    """
+    Public accessor for active-command functionality rules.
+    Returns the parsed YAML as a Python dict.
+    """
+    return _load_commands_config()
