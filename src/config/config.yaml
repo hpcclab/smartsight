@@ -53,6 +53,10 @@ passive_detection:
   object_detection_max_rate: 1.0
   facial_recognition_max_rate: 1.0
   text_detection_max_rate: 1.0
+  # While true, the passive loop waits during active Whisper transcription.
+  pause_during_active_stt: true
+  # While true, the passive loop waits during local Ollama streams.
+  pause_during_active_llm: true
 
 recording:
   sample_rate: 16000
@@ -60,7 +64,7 @@ recording:
   chunk_size: 1024
 
 speech_to_text:
-  model_size: "small"  # Options: tiny, base, small, medium, large
+  model_size: "medium"  # Options: tiny, base, small, medium, large
   use_fp16: False
 
 input:

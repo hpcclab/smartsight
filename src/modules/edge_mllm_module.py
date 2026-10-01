@@ -59,50 +59,53 @@ class EdgeMLLMModule(BaseAIModel):
         Yields:
             str: Chunks of the generated response.
         """
+        from .passive_detector_module import paused_for_active_inference
+
         prompt = input_data
         image_path = kwargs.get("image_path")
         frame = kwargs.get("frame")
         use_image = kwargs.get("use_image", False)
         already_spoken = kwargs.get("already_spoken")
 
-        try:
-            images = self._image_payload(image_path, frame, use_image)
-            if images is not None:
-                complete_prompt = f"Concisely answer this query in paragraph form using the image. {prompt}"
-                messages = [
-                    {
-                        'role': 'user',
-                        'content': complete_prompt,
-                        'images': images
-                    }
-                ]
-            elif already_spoken is not None:
-                messages = [
-                    {'role': 'user', 'content': prompt},
-                    {'role': 'assistant', 'content': already_spoken}
-                ]
-            else:
-                messages = [
-                    {'role': 'user', 'content': prompt}
-                ]
-
-            stream = chat(
-                model=self.model_name,
-                messages=messages,
-                stream=True
-            )
-
+        with paused_for_active_inference("llm"):
             try:
-                for chunk in stream:
-                    content = chunk.get('message', {}).get('content', '')
-                    if content:
-                        content = content.replace("*", "")
-                        yield content
-            finally:
-                closer = getattr(stream, "close", None)
-                if callable(closer):
-                    closer()
+                images = self._image_payload(image_path, frame, use_image)
+                if images is not None:
+                    complete_prompt = f"Concisely answer this query in paragraph form using the image. {prompt}"
+                    messages = [
+                        {
+                            'role': 'user',
+                            'content': complete_prompt,
+                            'images': images
+                        }
+                    ]
+                elif already_spoken is not None:
+                    messages = [
+                        {'role': 'user', 'content': prompt},
+                        {'role': 'assistant', 'content': already_spoken}
+                    ]
+                else:
+                    messages = [
+                        {'role': 'user', 'content': prompt}
+                    ]
 
-        except Exception as e:
-            self.logger.error(f"Ollama Error: {e}")
-            yield f" [Local Error: {str(e)}] "
+                stream = chat(
+                    model=self.model_name,
+                    messages=messages,
+                    stream=True
+                )
+
+                try:
+                    for chunk in stream:
+                        content = chunk.get('message', {}).get('content', '')
+                        if content:
+                            content = content.replace("*", "")
+                            yield content
+                finally:
+                    closer = getattr(stream, "close", None)
+                    if callable(closer):
+                        closer()
+
+            except Exception as e:
+                self.logger.error(f"Ollama Error: {e}")
+                yield f" [Local Error: {str(e)}] "

@@ -1,6 +1,7 @@
 import threading
 import time
 import logging
+from contextlib import contextmanager
 from utilities.logging_setup import get_logger
 from modules.shared_buffer import video_buffer
 from modules.object_detection_ai_module import ObjectDetectionAIModule
@@ -13,6 +14,8 @@ class PassiveDetectorModule:
     """
     Runs the ObjectDetectionAIModule continuously on frames from the shared buffer.
     """
+    _current = None
+
     def __init__(self, global_response):
         self.logger = get_logger(self.__class__.__name__)
         self.global_response = global_response
@@ -27,6 +30,11 @@ class PassiveDetectorModule:
         self.object_detection_rate = self.passive_config.get("object_detection_max_rate", 1.0)
         self.facial_recognition_rate = self.passive_config.get("facial_recognition_max_rate", 1.0)
         self.text_detection_rate = self.passive_config.get("text_detection_max_rate", 1.0)
+        self.pause_during_active_stt = self.passive_config.get("pause_during_active_stt", False)
+        self.pause_during_active_llm = self.passive_config.get("pause_during_active_llm", False)
+        self._pause_depth = 0
+        self._pause_lock = threading.Lock()
+        PassiveDetectorModule._current = self
 
         from modules.ocr_module import OCRModule
         from modules.facial_recognition_ai_module import FacialRecognitionAIModule
@@ -60,9 +68,48 @@ class PassiveDetectorModule:
             if self.thread and self.thread.is_alive():
                 self.thread.join(timeout=2.0)
 
+    @classmethod
+    def current(cls):
+        """The detector constructed most recently, or None."""
+        return cls._current
+
+    def pauses_for(self, situation):
+        """True when this situation should hold the passive loop."""
+        if situation == "stt":
+            return bool(self.pause_during_active_stt)
+        if situation == "llm":
+            return bool(self.pause_during_active_llm)
+        return False
+
+    def is_paused(self):
+        with self._pause_lock:
+            return self._pause_depth > 0
+
+    def pause(self):
+        """Hold the detection loop. Overlapping calls stay paused until each resumes."""
+        with self._pause_lock:
+            self._pause_depth += 1
+            paused_now = self._pause_depth == 1
+        if paused_now:
+            self.logger.info("Passive detection paused.")
+
+    def resume(self):
+        """Release one hold. The loop continues when the last hold is released."""
+        with self._pause_lock:
+            if self._pause_depth == 0:
+                self.logger.warning("Passive detection resume ignored; it was not paused.")
+                return
+            self._pause_depth -= 1
+            resumed = self._pause_depth == 0
+        if resumed:
+            self.logger.info("Passive detection resumed.")
+
     def _detection_loop(self):
         """Continuous loop to run inference on retrieved frames."""
         while self.running:
+            if self.is_paused():
+                time.sleep(0.05)
+                continue
             if not self.main_tasks or len(self.main_tasks) == 0:
                 time.sleep(0.1)
                 if self.hold_list:
@@ -209,3 +256,17 @@ class PassiveDetectorModule:
                 return ", ".join(report_detections.keys())
             return self._format_detections(report_detections)
         return ""
+
+
+@contextmanager
+def paused_for_active_inference(situation):
+    """Pause the live detector for 'stt' or 'llm' when that config flag is set."""
+    detector = PassiveDetectorModule.current()
+    if detector is None or not detector.pauses_for(situation):
+        yield
+        return
+    detector.pause()
+    try:
+        yield
+    finally:
+        detector.resume()

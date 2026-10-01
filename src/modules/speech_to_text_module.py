@@ -35,13 +35,16 @@ class SpeechToTextModule(BaseAIModel):
         Returns:
             str: Transcribed text.
         """
+        from .passive_detector_module import paused_for_active_inference
+
         self.logger.debug(f"Transcribing audio from: {input_data}")
-        try:
-            # fp16=False if mostly running on CPU unless requested explicitly
-            result = self.model.transcribe(input_data, fp16=self.use_fp16)
-            transcribed_text = result.get("text", "").strip()
-            self.logger.debug(f"Transcription result: {transcribed_text}")
-            return transcribed_text
-        except Exception as e:
-            self.logger.error(f"Transcription failed: {e}")
-            return ""
+        with paused_for_active_inference("stt"):
+            try:
+                # fp16=False if mostly running on CPU unless requested explicitly
+                result = self.model.transcribe(input_data, fp16=self.use_fp16)
+                transcribed_text = result.get("text", "").strip()
+                self.logger.debug(f"Transcription result: {transcribed_text}")
+                return transcribed_text
+            except Exception as e:
+                self.logger.error(f"Transcription failed: {e}")
+                return ""
