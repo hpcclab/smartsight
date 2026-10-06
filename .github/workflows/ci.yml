@@ -45,7 +45,10 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pytest
+          # openai-whisper builds from source and its setup.py imports pkg_resources,
+          # which setuptools 81+ removed. Pin setuptools inside pip's build env too.
+          echo "setuptools<70" > "$RUNNER_TEMP/build-constraints.txt"
+          pip install -r requirements.txt pytest --build-constraint "$RUNNER_TEMP/build-constraints.txt"
 
       # Real keys are gitignored; tests never call the APIs
       - name: Stub sensitive config
