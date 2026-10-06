@@ -11,17 +11,30 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash  # Git Bash on Windows, so every step is the same script
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system dependencies
+      # dlib needs cmake + a compiler, PyAudio needs portaudio. Windows runners
+      # already ship cmake and MSVC, and PyAudio has Windows wheels.
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          # cmake/build-essential: dlib, portaudio: PyAudio, libgl/glib: opencv, espeak-ng: pyttsx3
           sudo apt-get install -y cmake build-essential portaudio19-dev libgl1 libglib2.0-0 espeak-ng
+
+      - name: Install system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install cmake portaudio
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,7 +44,7 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install --upgrade pip
+          python -m pip install --upgrade pip
           pip install -r requirements.txt pytest
 
       # Real keys are gitignored; tests never call the APIs
@@ -39,11 +52,11 @@ jobs:
         run: echo "{}" > src/config/configSensitive.yaml
 
       - name: Run tests
-        run: pytest Testing/testingSequence.py Testing/test_units.py --junitxml=test-results.xml --disable-warnings -q
+        run: pytest Testing/testingSequence.py Testing/test_units.py --junitxml=test-results.xml --disable-warnings -q -rs
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-results
+          name: test-results-${{ matrix.os }}
           path: test-results.xml
