@@ -6,7 +6,17 @@ from collections import Counter
 from .ai_module_base import BaseAIModel
 
 class DollarDetectionAIModule(BaseAIModel):
+    """Detects US dollar bills in a frame and announces what is on the table.
 
+    Two interchangeable backends, chosen by config `dollar_detection.backend`:
+      - "local":    bundled YOLO weights, runs on-device
+      - "roboflow": hosted serverless model (default), needs an API key
+
+    Both produce the same detection tuple, so everything downstream is shared.
+    """
+
+    # Denomination name -> face value. Doubles as the whitelist of valid names
+    # and as the sort key for announcements (largest bill first).
     DENOMINATIONS = {
         "one": 1,
         "five": 5,
@@ -15,6 +25,11 @@ class DollarDetectionAIModule(BaseAIModel):
         "fifty": 50,
     }
 
+    # The hosted model returns opaque numeric class labels; this maps them onto
+    # our denomination names. Front and back of the same bill get separate ids.
+    # TODO: class "3" is a guess and this is money - confirm it against a known
+    # $5 before trusting the roboflow backend, or drop the entry so an unmapped
+    # class is logged and skipped rather than announced as the wrong amount.
     ROBOFLOW_CLASS_MAP = {
         "1": "fifty",
         "2": "five",
@@ -32,6 +47,11 @@ class DollarDetectionAIModule(BaseAIModel):
     ERROR = "An unexpected error occurred during dollar detection."
 
     def __init__(self):
+        """Reads the `dollar_detection` config section; loads no model yet.
+
+        In: nothing (config comes from configSensitive.yaml / config.yaml).
+        Out: an unloaded module — load_model() is deferred until first use.
+        """
         super().__init__("dollar_detection")
         self.backend = str(self.config.get("backend", "roboflow")).lower()
         self.class_map = {str(k): v for k, v in
@@ -39,11 +59,20 @@ class DollarDetectionAIModule(BaseAIModel):
         self._session = None
 
     def _api_key(self):
-        """Env var wins so the key can stay out of the config file entirely."""
+        """Resolves the Roboflow credential.
+
+        In: nothing. Out: the key as a str, "" if none is configured.
+        Environment wins over config so the key stays out of the repo.
+        """
         return os.environ.get("ROBOFLOW_API_KEY") or self.config.get("roboflow_api_key", "")
 
     def load_model(self):
-        """Prepares whichever backend is configured."""
+        """Prepares whichever backend is configured. Called once, lazily.
+
+        In: nothing. Out: nothing — sets self.model (YOLO instance for "local",
+        a requests.Session for "roboflow"), which is also the "already loaded"
+        flag the rest of the module checks.
+        """
         if self.backend == "local":
             from ultralytics import YOLO
             model_path = self.config.get("model_path", "models/dollar_detection/best.pt")
@@ -61,7 +90,12 @@ class DollarDetectionAIModule(BaseAIModel):
         self.logger.info(f"Dollar detection using hosted model {self.config.get('roboflow_model_id', 'dollar-bill-a5fkm/1')}")
 
     def _detect_roboflow(self, frame) -> list:
-       
+        """Runs one inference against the hosted Roboflow model.
+
+        In:  frame — a BGR numpy image.
+        Out: list of (denomination, confidence, (x1, y1, x2, y2)).
+        Raises on a missing key, a failed encode, or a non-2xx response.
+        """
         api_key = self._api_key()
         if not api_key:
             raise RuntimeError("Roboflow API key is not configured.")
@@ -77,7 +111,10 @@ class DollarDetectionAIModule(BaseAIModel):
 
         response = self._session.post(
             f"{api_url}/{model_id}",
-            params={"confidence": min_conf},
+            # Roboflow reads confidence as a percentage: sending 0.5 meant a
+            # 0.5% server-side threshold, so it returned everything and we threw
+            # most of it away below. Probed: confidence=50 returns only >=0.50.
+            params={"confidence": min_conf * 100},
             # Key goes in the Authorization header, never the query string
             headers={
                 "Authorization": f"Bearer {api_key}",
@@ -88,6 +125,8 @@ class DollarDetectionAIModule(BaseAIModel):
         )
         response.raise_for_status()
 
+        # Server-side filtering is best-effort, so re-check confidence here and
+        # drop anything whose class we cannot name.
         detections = []
         for pred in response.json().get("predictions", []):
             conf = float(pred.get("confidence", 0.0))
@@ -98,16 +137,19 @@ class DollarDetectionAIModule(BaseAIModel):
             if not denomination:
                 self.logger.warning(f"Unmapped Roboflow class: {class_name!r}")
                 continue
-            # Roboflow returns center-x/center-y/width/height
+            # Roboflow returns center-x/center-y/width/height; convert to the
+            # corner form the local backend and the test overlay both expect.
             x, y, w, h = pred["x"], pred["y"], pred["width"], pred["height"]
             detections.append((denomination, conf,
                                (x - w / 2, y - h / 2, x + w / 2, y + h / 2)))
         return detections
 
     def _detect_local(self, frame) -> list:
-        """Runs the bundled YOLO weights.
+        """Runs the bundled YOLO weights on-device. Roboflow-free path.
 
-        Returns a list of (denomination, confidence, (x1, y1, x2, y2)).
+        In:  frame — a BGR numpy image.
+        Out: list of (denomination, confidence, (x1, y1, x2, y2)) — same shape
+             as _detect_roboflow, so callers never branch on backend.
         """
         min_conf = float(self.config.get("min_conf", 0.5))
         results = self.model(frame, verbose=False)
@@ -127,7 +169,10 @@ class DollarDetectionAIModule(BaseAIModel):
         return detections
 
     def detect_boxes(self, frame) -> list:
-        """Raw detections as (denomination, confidence, (x1, y1, x2, y2)).
+        """Public entry point for callers that want geometry, not a sentence.
+
+        In:  frame — a BGR numpy image. Loads the model if it is not loaded yet.
+        Out: list of (denomination, confidence, (x1, y1, x2, y2)).
 
         run_inference() is the announcement path; this is for tooling that needs
         the boxes, e.g. Testing/dollarDetectionTest.py drawing an overlay.
@@ -137,11 +182,15 @@ class DollarDetectionAIModule(BaseAIModel):
         return self._detect_local(frame) if self.backend == "local" else self._detect_roboflow(frame)
 
     def summarise(self, detections) -> str:
-        """Phrases detections the way object detection does: singular labels,
-        count only when > 1, largest denomination first.
+        """Turns detections into the spoken announcement.
 
-        The passive detector parses this back apart and re-pluralizes, so the
-        labels stay singular here (see PassiveDetectorModule._parse_detections).
+        In:  detections — the list _detect_* returns; only the name is used.
+        Out: e.g. "twenty dollar bill, 2 one dollar bill", or NO_DETECTION.
+
+        Phrased the way object detection phrases things: singular labels, count
+        only when > 1, largest denomination first. The passive detector parses
+        this back apart and re-pluralizes, so the labels stay singular here
+        (see PassiveDetectorModule._parse_detections).
         """
         bill_counts = Counter(d[0] for d in detections)
         if len(bill_counts) < 1:
@@ -157,9 +206,12 @@ class DollarDetectionAIModule(BaseAIModel):
         return ", ".join(output_parts)
 
     def run_inference(self, input_data, **kwargs) -> str:
-        """
-        Runs dollar bill detection on the input image path or frame.
-        Returns a string summary of detected bills.
+        """Main entry point, called by BaseAIModel.execute().
+
+        In:  input_data — an image path (str) or an already-decoded BGR frame.
+        Out: the announcement string from summarise(), or NO_DETECTION /
+             ERROR. Never raises: the caller is a speech pipeline, so every
+             failure degrades to a sentence instead of taking the app down.
         """
         try:
             if isinstance(input_data, str):
