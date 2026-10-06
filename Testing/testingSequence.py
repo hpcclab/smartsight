@@ -36,14 +36,22 @@ def get_modules():
         
     return modules
 
+# Dependencies that only exist on some OSes: GStreamer bindings (Linux/Pi),
+# Quartz (keyboard on macOS), winsound (Windows). Missing one is a skip, not a failure.
+PLATFORM_ONLY = {"gi", "Quartz", "AppKit", "winsound"}
+
 @pytest.mark.parametrize("module_name", get_modules())
 def test_module_import(module_name):
     """
-    Module-by-module test to ensure each module can be imported 
+    Module-by-module test to ensure each module can be imported
     without syntax errors or missing dependencies.
     """
     try:
         importlib.import_module(module_name)
+    except ModuleNotFoundError as e:
+        if e.name and e.name.split(".")[0] in PLATFORM_ONLY:
+            pytest.skip(f"{module_name} needs {e.name}, not available on this platform")
+        pytest.fail(f"Failed to import {module_name}: {e}")
     except Exception as e:
         pytest.fail(f"Failed to import {module_name}: {e}")
 
